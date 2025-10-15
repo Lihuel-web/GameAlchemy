@@ -1,47 +1,87 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8" />
-  <title>Alchemy Game — Cosmología Rigurosa</title>
-  <link rel="stylesheet" href="styles.css" />
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis-network.min.css" rel="stylesheet"/>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis-network.min.js"></script>
-</head>
-<body>
-  <div id="game-container" role="main" aria-label="Juego de combinaciones cosmológicas">
-    <section id="elements" aria-label="Elementos disponibles"></section>
+/* Layout principal */
+#game-container {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  grid-template-areas:
+    "elements pedia"
+    "crafting pedia"
+    "results pedia"
+    "controls pedia"
+    "noncomb pedia";
+  gap: 16px;
+  min-height: 100vh;
+  margin: 0 auto;
+  max-width: 1100px;
+  padding: 16px;
+}
 
-    <section id="crafting-area" aria-label="Área de crafteo" tabindex="0">
-      Arrastra aquí dos elementos para combinarlos
-    </section>
+#elements { grid-area: elements; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+#crafting-area { grid-area: crafting; border: 2px dashed #666; min-height: 150px; display: flex; align-items: center; justify-content: center; }
+#combination-results { grid-area: results; min-height: 40px; color: #333; }
+#controls { grid-area: controls; display: flex; gap: 8px; }
+#non-combinable-section { grid-area: noncomb; }
+#non-combinable-elements { display: flex; flex-direction: column; gap: 6px; }
 
-    <div id="combination-results" aria-live="polite"></div>
+#pedia { grid-area: pedia; border-left: 1px solid #ddd; padding-left: 14px; }
+#pedia h2 { margin-top: 0; }
 
-    <div id="controls">
-      <button id="reset-button">Reset Game</button>
-      <button id="diagram-toggle-button">Ver Diagrama</button>
-    </div>
+/* Elementos */
+.element {
+  width: 140px;
+  min-height: 44px;
+  padding: 8px;
+  margin: 4px;
+  border: 1px solid #ccc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  user-select: none;
+  text-align: center;
+  border-radius: 8px;
+  background: #fafafa;
+}
 
-    <div id="non-combinable-section">
-      <h2>Elementos No Combinables por ahora</h2>
-      <div id="non-combinable-elements"></div>
-    </div>
+.element:active { cursor: grabbing; }
+.element.non-combinable { background-color: #ffefef; color: #333; border-color: #f44336; }
+.element.in-crafting-area { background: #eef7ff; border-color: #42a5f5; }
+.element.in-menu { width: 100%; box-shadow: 0 2px 5px rgba(0,0,0,0.1); cursor: default; }
 
-    <aside id="pedia" aria-label="Definiciones y explicaciones">
-      <h2>Glosario</h2>
-      <div id="pedia-content">
-        <p>Haz clic en un elemento para ver su definición. Al crear una combinación, se mostrará su justificación.</p>
-      </div>
-    </aside>
-  </div>
+/* Botones */
+#reset-button {
+  padding: 10px 16px; font-size: 14px; color: #fff; background-color: #f44336;
+  border: none; border-radius: 6px; cursor: pointer; transition: background-color .2s;
+}
+#reset-button:hover { background-color: #d32f2f; }
+#diagram-toggle-button {
+  padding: 10px 16px; font-size: 14px; color: #fff; background-color: #1976d2;
+  border: none; border-radius: 6px; cursor: pointer; transition: background-color .2s;
+}
+#diagram-toggle-button:hover { background-color: #115293; }
+#story-toggle-button {
+  padding: 10px 16px; font-size: 14px; color: #fff; background-color: #6a1b9a;
+  border: none; border-radius: 6px; cursor: pointer; transition: background-color .2s;
+}
+#story-toggle-button:hover { background-color: #4a148c; }
 
-  <div id="diagram-modal" aria-hidden="true">
-    <div id="diagram-content">
-      <button id="diagram-close-button" class="close-btn" aria-label="Cerrar diagrama">&times;</button>
-      <div id="network-container"></div>
-    </div>
-  </div>
+/* Modales compartidos */
+#diagram-modal, #story-modal {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+  background-color: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 9999;
+}
+#diagram-modal.visible, #story-modal.visible { display: flex; }
+#diagram-content, #story-content {
+  background: #fff; width: 80%; height: 80%; position: relative; overflow: hidden;
+  border-radius: 8px; box-shadow: 0 2px 15px rgba(0,0,0,0.5);
+}
+#network-container, #story-container { width: 100%; height: 100%; padding: 12px; box-sizing: border-box; overflow: auto; }
+#diagram-close-button, #story-close-button {
+  position: absolute; top: 10px; right: 10px; background: transparent; border: none; font-size: 24px; font-weight: bold; cursor: pointer; color: #666;
+}
+#diagram-close-button:hover, #story-close-button:hover { color: #000; }
 
-  <script src="script.js"></script>
-</body>
-</html>
+/* Relato */
+.story-segment { border-left: 4px solid #6a1b9a; padding: 8px 12px; margin: 8px 0; background: #faf5ff; }
+.story-locked { opacity: 0.6; filter: grayscale(0.3); border-left-color: #bbb; background: #f5f5f5; }
+.story-title { margin: 0 0 4px 0; }
+.story-requires { font-size: 12px; color: #666; }
