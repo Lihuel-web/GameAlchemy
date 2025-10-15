@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Alchemy Game — Cosmología Rigurosa</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis-network.min.css" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis-network.min.js"></script>
+</head>
+<body>
+  <div id="game-container" role="main" aria-label="Juego de combinaciones cosmológicas">
+    <section id="elements" aria-label="Elementos disponibles"></section>
+
+    <section id="crafting-area" aria-label="Área de crafteo" tabindex="0">
+      Arrastra aquí dos elementos para combinarlos
+    </section>
+
+    <div id="combination-results" aria-live="polite"></div>
+
+    <div id="controls">
+      <button id="reset-button">Reset Game</button>
+      <button id="diagram-toggle-button">Ver Diagrama</button>
+    </div>
+
+    <div id="non-combinable-section">
+      <h2>Elementos No Combinables por ahora</h2>
+      <div id="non-combinable-elements"></div>
+    </div>
+
+    <aside id="pedia" aria-label="Definiciones y explicaciones">
+      <h2>Glosario</h2>
+      <div id="pedia-content">
+        <p>Haz clic en un elemento para ver su definición. Al crear una combinación, se mostrará su justificación.</p>
+      </div>
+    </aside>
+  </div>
+
+  <div id="diagram-modal" aria-hidden="true">
+    <div id="diagram-content">
+      <button id="diagram-close-button" class="close-btn" aria-label="Cerrar diagrama">&times;</button>
+      <div id="network-container"></div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
