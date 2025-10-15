@@ -6,53 +6,74 @@ let discoveredElements = loadGame() || {
   combined: []
 };
 
-let recipesRaw = [];          // como vengan del JSON (recipes o combinaciones viejas)
-let recipeMap = new Map();    // llave canónica "A|B" -> outputs[]
+let recipesRaw = [];
+let recipeMap = new Map(); // "A|B" -> outputs[]
 let allPossibleElements = [];
 let definitions = {};
+let kidDefinitions = {};
 let justifications = {};
+let aliases = {};
+let storySegments = [];
 
 function loadGame() {
   const saved = localStorage.getItem('discoveredElements');
   return saved ? JSON.parse(saved) : { base: ["Singularidad", "Expansión"], combined: [] };
 }
 
-// helpers de normalización
+// helpers
 const norm = s => String(s).trim();
-const keyFor = (a, b) => [norm(a), norm(b)].sort((x, y) => x.localeCompare(y, 'es')).join('|');
+const keyFor = (a, b) => [norm(a), norm(b)].map(resolveAlias).sort((x, y) => x.localeCompare(y, 'es')).join('|');
+function resolveAlias(name) {
+  const n = norm(name);
+  return aliases[n] || n;
+}
 
+// Touch helpers state
+let lastTapTime = 0;
+let lastTapElement = null;
+
+// DOM Ready
 document.addEventListener('DOMContentLoaded', () => {
   const elementsContainer = document.getElementById('elements');
   const craftingArea = document.getElementById('crafting-area');
   const resultsArea = document.getElementById('combination-results');
   const pedia = document.getElementById('pedia-content');
 
-  // Modal diagrama
+  // Modales
   const diagramButton = document.getElementById('diagram-toggle-button');
   const diagramModal = document.getElementById('diagram-modal');
   const diagramCloseBtn = document.getElementById('diagram-close-button');
+
+  const storyButton = document.getElementById('story-toggle-button');
+  const storyModal = document.getElementById('story-modal');
+  const storyCloseBtn = document.getElementById('story-close-button');
+  const storyContainer = document.getElementById('story-container');
 
   fetch(dataPath)
     .then(r => r.json())
     .then(data => {
       allPossibleElements = (data.elements.base || []).concat(data.elements.combined || []);
       definitions = data.definitions || {};
+      kidDefinitions = data.kid_definitions || {};
       justifications = data.justifications || {};
+      aliases = data.aliases || {};
+      storySegments = (data.story && data.story.segments) ? data.story.segments : [];
 
-      // 1) Soportar tu formato antiguo (combinations como concatenaciones)
       if (data.combinations && !data.recipes) {
         recipesRaw = migrateOldCombinations(data.combinations);
       } else {
         recipesRaw = data.recipes || [];
       }
 
-      // 2) Construir mapa canónico
+      // construir mapa canónico
       recipeMap.clear();
       recipesRaw.forEach(({ inputs, outputs }) => {
         if (!Array.isArray(inputs) || inputs.length !== 2) return;
-        const k = keyFor(inputs[0], inputs[1]);
-        const outs = (outputs || []).map(norm);
-        recipeMap.set(k, (recipeMap.get(k) || []).concat(outs));
+        const a = resolveAlias(inputs[0]);
+        const b = resolveAlias(inputs[1]);
+        const k = keyFor(a, b);
+        const outs = (outputs || []).map(o => resolveAlias(o));
+        recipeMap.set(k, Array.from(new Set((recipeMap.get(k) || []).concat(outs))));
       });
 
       initGame();
@@ -60,31 +81,26 @@ document.addEventListener('DOMContentLoaded', () => {
     .catch(err => console.error('Error loading game data:', err));
 
   function migrateOldCombinations(combos) {
-    // combos: { "A B concatenados": [outputs...] }
     const migrated = [];
-    const names = new Set(allPossibleElements.map(norm));
-    const trySplit = (concatKey) => {
-      // Encuentra cualquier prefijo válido que deje un sufijo válido
+    const names = new Set(allPossibleElements.map(n => resolveAlias(n)));
+    function trySplit(concatKey) {
+      const canonKey = resolveAlias(concatKey);
       for (const e1 of names) {
-        if (concatKey.startsWith(e1)) {
-          const rest = concatKey.slice(e1.length);
-          for (const e2 of names) {
-            if (rest === e2) return [e1, e2];
-          }
+        if (canonKey.startsWith(e1)) {
+          const rest = canonKey.slice(e1.length);
+          if (names.has(rest)) return [e1, rest];
         }
       }
       return null;
-    };
-
+    }
     Object.entries(combos).forEach(([k, outs]) => {
       const pair = trySplit(norm(k));
-      if (pair) migrated.push({ inputs: pair, outputs: outs.map(norm) });
+      if (pair) migrated.push({ inputs: pair, outputs: outs.map(o => resolveAlias(o)) });
     });
     return migrated;
   }
 
   function initGame() {
-    // Reset visual
     elementsContainer.innerHTML = '';
     (discoveredElements.base || []).forEach(createElementDiv);
     (discoveredElements.combined || []).forEach(createElementDiv);
@@ -92,7 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function createElementDiv(elementName) {
-    const name = norm(elementName);
+    const name = resolveAlias(elementName);
     const elDiv = document.createElement('div');
     elDiv.textContent = name;
     elDiv.className = 'element';
@@ -103,14 +119,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // drag desktop
     elDiv.ondragstart = (e) => e.dataTransfer.setData('text', name);
 
-    // doble clic desktop: mover a “no combinables” si marcado
+    // doble clic desktop: enviar a no combinables si aplica
     elDiv.ondblclick = (e) => {
       if (e.currentTarget.classList.contains('non-combinable')) {
         addElementToNonCombinableSection(e.currentTarget);
       }
     };
 
-    // clic: mostrar definición
+    // clic: mostrar definiciones
     elDiv.addEventListener('click', () => {
       showDefinition(name);
     });
@@ -122,13 +138,13 @@ document.addEventListener('DOMContentLoaded', () => {
     elementsContainer.appendChild(elDiv);
   }
 
-  // panel de definiciones
   function showDefinition(name) {
     const def = definitions[name] || 'Definición no disponible.';
-    pedia.innerHTML = `<h3>${name}</h3><p>${def}</p>`;
+    const kid = kidDefinitions[name] || 'Explicación para secundaria no disponible.';
+    pedia.innerHTML = `<h3>${name}</h3><p><strong>Rigurosa:</strong> ${def}</p><p><strong>Para secundaria:</strong> ${kid}</p>`;
   }
 
-  // drag over y drop
+  // Drag & Drop
   craftingArea.ondragover = e => e.preventDefault();
   craftingArea.ondrop = e => {
     e.preventDefault();
@@ -140,7 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const current = [...craftingArea.querySelectorAll('.element')];
     if (current.length >= 2) return;
 
-    const original = document.querySelector(`.element[data-element="${CSS.escape(elementName)}"]`);
+    const original = document.querySelector(`.element[data-element="${CSS.escape(resolveAlias(elementName))}"]`);
     if (!original) return;
 
     const clone = original.cloneNode(true);
@@ -165,7 +181,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (results && results.length) {
       const created = [];
-      for (const r of results.slice(0, 4)) {
+      for (const r0 of results.slice(0, 6)) { // por si hay varias salidas
+        const r = resolveAlias(r0);
         if (!discoveredElements.combined.includes(r) && !discoveredElements.base.includes(r)) {
           discoveredElements.combined.push(r);
           createElementDiv(r);
@@ -178,7 +195,6 @@ document.addEventListener('DOMContentLoaded', () => {
       saveGame(discoveredElements);
       updateNonCombinableElements();
 
-      // Justificación
       const k = keyFor(names[0], names[1]);
       if (justifications[k]) {
         const html = `<h3>${names[0]} + ${names[1]}</h3><p>${justifications[k]}</p>`;
@@ -195,17 +211,17 @@ document.addEventListener('DOMContentLoaded', () => {
     pedia.prepend(box);
   }
 
-  // “no combinables” mejorado
+  // No combinables
   function updateNonCombinableElements() {
-    const disc = new Set(discoveredElements.base.concat(discoveredElements.combined).map(norm));
+    const disc = new Set(discoveredElements.base.concat(discoveredElements.combined).map(resolveAlias));
     const container = document.getElementById('non-combinable-elements');
     container.innerHTML = '';
 
     for (const name of disc) {
-      const couldProduceNew = canProduceUndiscovered(name, disc);
+      const could = canProduceUndiscovered(name, disc);
       const el = document.querySelector(`.element[data-element="${CSS.escape(name)}"]`);
       if (!el) continue;
-      if (!couldProduceNew) {
+      if (!could) {
         el.classList.add('non-combinable');
         addElementToNonCombinableSection(el);
       } else {
@@ -215,13 +231,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function canProduceUndiscovered(elementName, discoveredSet) {
-    // existe receta {elementName, X} con X ya descubierto y algún output no descubierto
     for (const [k, outs] of recipeMap.entries()) {
       const [a, b] = k.split('|');
       if (a === elementName || b === elementName) {
         const other = a === elementName ? b : a;
         if (discoveredSet.has(other)) {
-          if (outs.some(o => !discoveredSet.has(o))) return true;
+          if (outs.some(o => !discoveredSet.has(resolveAlias(o)))) return true;
         }
       }
     }
@@ -233,7 +248,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const clone = element.cloneNode(true);
     clone.classList.add('in-menu');
     clone.removeAttribute('draggable');
-    // mostrar definición al hacer clic
     clone.addEventListener('click', () => showDefinition(clone.getAttribute('data-element')));
     container.appendChild(clone);
   }
@@ -251,19 +265,19 @@ document.addEventListener('DOMContentLoaded', () => {
     resultsArea.textContent = '';
     document.getElementById('non-combinable-elements').innerHTML = '';
     document.getElementById('pedia-content').innerHTML =
-      '<p>Haz clic en un elemento para ver su definición. Al crear una combinación, se mostrará su justificación.</p>';
+      '<p>Haz clic en un elemento para ver su definición rigurosa y su explicación para secundaria. Al crear una combinación, se mostrará su justificación.</p>';
 
     initGame();
   }
 
   document.getElementById('reset-button').addEventListener('click', resetGame);
 
-  // ===== Diagrama con Vis.js =====
+  // ===== Diagrama jerárquico con Vis.js =====
   function renderDiagram() {
     const container = document.getElementById('network-container');
     container.innerHTML = '';
 
-    const discovered = discoveredElements.base.concat(discoveredElements.combined);
+    const discovered = discoveredElements.base.concat(discoveredElements.combined).map(resolveAlias);
     const nodeSet = new Set(discovered);
 
     const nodesArray = [...nodeSet].map(name => ({ id: name, label: name }));
@@ -272,9 +286,10 @@ document.addEventListener('DOMContentLoaded', () => {
     for (const [k, outs] of recipeMap.entries()) {
       const [a, b] = k.split('|');
       for (const r of outs) {
-        if (nodeSet.has(r)) {
-          if (nodeSet.has(a)) edgesArray.push({ from: a, to: r, arrows: 'to' });
-          if (nodeSet.has(b)) edgesArray.push({ from: b, to: r, arrows: 'to' });
+        const res = resolveAlias(r);
+        if (nodeSet.has(res)) {
+          if (nodeSet.has(a)) edgesArray.push({ from: a, to: res, arrows: 'to' });
+          if (nodeSet.has(b)) edgesArray.push({ from: b, to: res, arrows: 'to' });
         }
       }
     }
@@ -283,8 +298,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const edges = new vis.DataSet(edgesArray);
 
     const options = {
-      layout: { improvedLayout: true },
-      physics: { enabled: true, stabilization: { iterations: 250 } },
+      layout: {
+        hierarchical: {
+          enabled: true,
+          direction: 'LR', // Left to Right para sentido de progreso
+          sortMethod: 'directed',
+          nodeSpacing: 180,
+          levelSeparation: 160
+        }
+      },
+      physics: { enabled: false },
       interaction: { dragNodes: true, zoomView: true, dragView: true }
     };
 
@@ -307,10 +330,42 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // ===== Soporte móvil =====
-  let lastTapTime = 0;
-  let lastTapElement = null;
+  // ===== Relato desbloqueable =====
+  function renderStory() {
+    storyContainer.innerHTML = '';
+    const disc = new Set(discoveredElements.base.concat(discoveredElements.combined).map(resolveAlias));
 
+    storySegments.forEach(seg => {
+      const unlocked = (seg.requires || []).every(r => disc.has(resolveAlias(r)));
+      const card = document.createElement('div');
+      card.className = 'story-segment' + (unlocked ? '' : ' story-locked');
+      const reqs = (seg.requires || []).map(resolveAlias).join(', ');
+      card.innerHTML = `
+        <h3 class="story-title">${unlocked ? '' : '🔒 '}${seg.title}</h3>
+        <div class="story-requires"><strong>Se desbloquea con:</strong> ${reqs || '—'}</div>
+        <p>${unlocked ? seg.text : 'Sigue combinando para desbloquear este capítulo.'}</p>
+      `;
+      storyContainer.appendChild(card);
+    });
+  }
+
+  storyButton.addEventListener('click', () => {
+    storyModal.classList.add('visible');
+    storyModal.setAttribute('aria-hidden', 'false');
+    renderStory();
+  });
+  storyCloseBtn.addEventListener('click', () => {
+    storyModal.classList.remove('visible');
+    storyModal.setAttribute('aria-hidden', 'true');
+  });
+  storyModal.addEventListener('click', (e) => {
+    if (e.target === storyModal) {
+      storyModal.classList.remove('visible');
+      storyModal.setAttribute('aria-hidden', 'true');
+    }
+  });
+
+  // ===== Soporte móvil =====
   function handleMobileDoubleTap(element) {
     element.addEventListener('touchstart', function (e) {
       const t = Date.now();
@@ -350,7 +405,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     element.addEventListener('touchend', (e) => {
       moving = false;
-      // ver si cayó dentro del área de crafteo
       const craftRect = craftingAreaEl.getBoundingClientRect();
       const rect = element.getBoundingClientRect();
       const inside =
