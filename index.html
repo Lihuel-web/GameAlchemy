@@ -18,10 +18,10 @@
     <div id="combination-results" aria-live="polite"></div>
 
     <div id="controls">
-      <button id="reset-button">Reset Game</button>
-      <button id="hard-reset-button">Borrar Partida (duro)</button>
+      <button id="reset-button">Reset</button>
       <button id="diagram-toggle-button">Ver Diagrama</button>
       <button id="story-toggle-button">Ver Relato</button>
+      <button id="lang-toggle-button" aria-pressed="false" title="Switch language">EN</button>
     </div>
 
     <div id="non-combinable-section">
@@ -32,7 +32,7 @@
     <aside id="pedia" aria-label="Definiciones y explicaciones">
       <h2>Glosario</h2>
       <div id="pedia-content">
-        <p>Haz clic en un elemento para ver su definición rigurosa y su explicación para secundaria. Al crear una combinación, se mostrará su justificación.</p>
+        <p>Haz clic en un elemento para ver su definición rigurosa y <strong>en palabras sencillas</strong>. Al crear una combinación, se mostrará su justificación.</p>
       </div>
     </aside>
   </div>
@@ -53,11 +53,6 @@
     </div>
   </div>
 
-  <script>
-    // Exponer versión en consola para diagnóstico
-    window.__ALCHEMY_VERSION__ = 'v2.1-hotfix';
-    console.info('[Alchemy] Cargando', window.__ALCHEMY_VERSION__);
-  </script>
   <script src="script.js"></script>
 </body>
 </html>
