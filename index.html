@@ -8,47 +8,39 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis-network.min.js"></script>
 </head>
 <body>
-  <div id="game-container" role="main" aria-label="Juego de combinaciones cosmológicas">
-    <section id="elements" aria-label="Elementos disponibles"></section>
-
-    <section id="crafting-area" aria-label="Área de crafteo" tabindex="0">
-      Arrastra aquí dos elementos para combinarlos
-    </section>
-
-    <div id="combination-results" aria-live="polite"></div>
-
+  <div id="game-container">
+    <section id="elements"></section>
+    <section id="crafting-area">Arrastra aquí dos elementos para combinarlos</section>
+    <div id="combination-results"></div>
     <div id="controls">
-      <button id="reset-button">Reset</button>
+      <button id="reset-button">Reset Game</button>
       <button id="diagram-toggle-button">Ver Diagrama</button>
       <button id="story-toggle-button">Ver Relato</button>
-      <button id="lang-toggle-button" aria-pressed="false" title="Switch language">EN</button>
     </div>
-
     <div id="non-combinable-section">
       <h2>Elementos No Combinables por ahora</h2>
       <div id="non-combinable-elements"></div>
     </div>
-
-    <aside id="pedia" aria-label="Definiciones y explicaciones">
+    <aside id="pedia">
       <h2>Glosario</h2>
       <div id="pedia-content">
-        <p>Haz clic en un elemento para ver su definición rigurosa y <strong>en palabras sencillas</strong>. Al crear una combinación, se mostrará su justificación.</p>
+        <p>Haz clic en un elemento para ver su definición rigurosa y su explicación en palabras sencillas. Al crear una combinación, se mostrará su justificación.</p>
       </div>
     </aside>
   </div>
 
-  <!-- Modal: Diagrama -->
-  <div id="diagram-modal" aria-hidden="true">
+  <!-- Modal Diagrama -->
+  <div id="diagram-modal">
     <div id="diagram-content">
-      <button id="diagram-close-button" class="close-btn" aria-label="Cerrar diagrama">&times;</button>
+      <button id="diagram-close-button" class="close-btn">&times;</button>
       <div id="network-container"></div>
     </div>
   </div>
 
-  <!-- Modal: Relato -->
-  <div id="story-modal" aria-hidden="true">
+  <!-- Modal Relato -->
+  <div id="story-modal">
     <div id="story-content">
-      <button id="story-close-button" class="close-btn" aria-label="Cerrar relato">&times;</button>
+      <button id="story-close-button" class="close-btn">&times;</button>
       <div id="story-container"></div>
     </div>
   </div>
@@ -56,3 +48,4 @@
   <script src="script.js"></script>
 </body>
 </html>
+
