@@ -5,54 +5,71 @@
       "Big Bang",
       "Energía Primordial",
       "Espacio-Tiempo",
+      "Vacío cuántico",
       "Superfuerza",
       "Gravedad",
       "Fuerza nuclear fuerte",
       "Fuerza nuclear débil",
       "Electromagnetismo",
-      "Fotón",
-      "Bosón de Higgs",
-      "Gluón",
       "Bosones",
       "Fermiones",
+      "Fotón",
+      "Gluón",
+      "Bosón de Higgs",
+      "Bosones W/Z",
       "Partícula",
       "Quark",
       "Leptón",
-      "Protón",
-      "Neutrón",
-      "Núcleo atómico",
-      "Átomo",
-      "Espuma cuántica",
-      "Vacío cuántico",
-      "Materia",
-      "Antimateria",
-      "Radiación electromagnética",
-      "Partícula con masa",
-      "Molecula",
+      "Electrón",
       "Hadrón",
       "Barión",
       "Mesón",
+      "Protón",
+      "Neutrón",
+      "Núcleo atómico",
+      "Materia",
+      "Antimateria",
+      "Espuma cuántica",
+      "Átomo",
+      "Molécula",
+      "Radiación electromagnética",
+      "Partícula con masa",
+      "Fusión nuclear",
       "Núcleos ligeros",
       "Hidrógeno",
       "Helio",
-      "Fusión nuclear",
       "Aniquilación"
     ]
   },
-  "_comment1": "Recetas con llaves canónicas. El motor migra las antiguas.",
+
+  "aliases": {
+    "Fza nuclear fuerte": "Fuerza nuclear fuerte",
+    "Fza nuclear débil": "Fuerza nuclear débil",
+    "Átomos": "Átomo",
+    "Fotones": "Fotón",
+    "Quarks": "Quark",
+    "Leptones": "Leptón",
+    "Partículas": "Partícula",
+    "Protones": "Protón",
+    "Neutrones": "Neutrón",
+    "Núcleo Atómico": "Núcleo atómico",
+    "Vacío Cuántico": "Vacío cuántico",
+    "Molecula": "Molécula"
+  },
+
   "recipes": [
-    { "inputs": ["Expansión", "Singularidad"], "outputs": ["Big Bang"] },
+    { "inputs": ["Singularidad", "Expansión"], "outputs": ["Big Bang"] },
 
     { "inputs": ["Big Bang", "Expansión"], "outputs": ["Espacio-Tiempo", "Vacío cuántico"] },
     { "inputs": ["Big Bang", "Singularidad"], "outputs": ["Energía Primordial", "Superfuerza"] },
 
-    { "inputs": ["Expansión", "Superfuerza"], "outputs": ["Electromagnetismo", "Fuerza nuclear débil", "Fuerza nuclear fuerte", "Gravedad"] },
+    { "inputs": ["Expansión", "Superfuerza"], "outputs": ["Gravedad", "Fuerza nuclear fuerte", "Fuerza nuclear débil", "Electromagnetismo"] },
 
     { "inputs": ["Vacío cuántico", "Vacío cuántico"], "outputs": ["Materia", "Antimateria", "Espuma cuántica"] },
 
     { "inputs": ["Energía Primordial", "Expansión"], "outputs": ["Bosones", "Fermiones"] },
-    { "inputs": ["Bosones", "Expansión"], "outputs": ["Fotón", "Gluón", "Bosón de Higgs"] },
-    { "inputs": ["Fermiones", "Expansión"], "outputs": ["Quark", "Leptón", "Partícula"] },
+    { "inputs": ["Bosones", "Expansión"], "outputs": ["Fotón", "Gluón", "Bosón de Higgs", "Bosones W/Z"] },
+    { "inputs": ["Fermiones", "Expansión"], "outputs": ["Quark", "Leptón", "Partícula", "Electrón"] },
 
     { "inputs": ["Quark", "Quark"], "outputs": ["Hadrón"] },
     { "inputs": ["Hadrón", "Quark"], "outputs": ["Barión", "Mesón"] },
@@ -62,16 +79,18 @@
     { "inputs": ["Bosón de Higgs", "Partícula"], "outputs": ["Partícula con masa"] },
 
     { "inputs": ["Núcleo atómico", "Leptón"], "outputs": ["Átomo"] },
-    { "inputs": ["Átomo", "Átomo"], "outputs": ["Molecula"] },
+    { "inputs": ["Electrón", "Núcleo atómico"], "outputs": ["Átomo"] },
+    { "inputs": ["Átomo", "Átomo"], "outputs": ["Molécula"] },
 
     { "inputs": ["Fotón", "Fotón"], "outputs": ["Radiación electromagnética"] },
 
     { "inputs": ["Materia", "Antimateria"], "outputs": ["Aniquilación", "Radiación electromagnética"] },
 
     { "inputs": ["Núcleo atómico", "Núcleo atómico"], "outputs": ["Fusión nuclear", "Núcleos ligeros"] },
-    { "inputs": ["Protón", "Núcleo atómico"], "outputs": ["Hidrógeno"] },
+    { "inputs": ["Protón", "Electrón"], "outputs": ["Hidrógeno"] },
     { "inputs": ["Hidrógeno", "Hidrógeno"], "outputs": ["Helio", "Fusión nuclear"] }
   ],
+
   "definitions": {
     "Singularidad": "Estado de densidad y curvatura extremas donde la relatividad general deja de ser predictiva.",
     "Expansión": "Aumento de la escala espacial; en cosmología, crecimiento del factor de escala del universo.",
@@ -88,27 +107,70 @@
     "Fermiones": "Partículas de espín semientero que obedecen el principio de exclusión de Pauli.",
     "Quark": "Constituyentes fundamentales de hadrones; portan carga de color.",
     "Leptón": "Fermiones que no sienten la interacción fuerte (electrón, muón, neutrinos, etc.).",
+    "Electrón": "Leptón cargado negativamente, fundamental para la estructura atómica y química.",
     "Gluón": "Bosón mediador de la interacción fuerte.",
     "Fotón": "Bosón mediador del electromagnetismo.",
     "Bosón de Higgs": "Campo y partícula responsables de dar masa efectiva vía ruptura espontánea de simetría.",
+    "Bosones W/Z": "Bosones débiles mediadores de la interacción débil (W±, Z0).",
     "Hadrón": "Partícula compuesta de quarks ligada por la interacción fuerte.",
     "Barión": "Hadrón con tres quarks (p. ej., protón, neutrón).",
     "Mesón": "Hadrón quark-antiquark.",
     "Protón": "Barión (uud) con carga +1.",
     "Neutrón": "Barión (udd) neutro.",
     "Núcleo atómico": "Conjunto ligado de protones y neutrones.",
-    "Átomo": "Núcleo rodeado por leptones cargados (electrones) ligados electromagnéticamente.",
-    "Molecula": "Conjunto de átomos unidos por enlaces químicos.",
-    "Radiación electromagnética": "Campo EM propagándose como onda/quantum de fotones.",
+    "Átomo": "Núcleo rodeado por electrones ligados electromagnéticamente.",
+    "Molécula": "Conjunto de átomos unidos por enlaces químicos.",
+    "Radiación electromagnética": "Campo EM propagándose como onda/cuanto de fotones.",
     "Partícula": "Entidad genérica antes de distinguir fermión/bosón o masa/no masa.",
     "Partícula con masa": "Partícula tras adquirir término de masa efectiva (mecanismo de Higgs).",
     "Fusión nuclear": "Proceso donde núcleos ligeros se combinan en otros más pesados liberando energía.",
     "Aniquilación": "Conversión de partícula y antipartícula en radiación (u otras partículas permitidas).",
     "Materia": "Contenido con números cuánticos de materia positivos; opuesto a antimateria.",
     "Antimateria": "Contenido con números cuánticos opuestos a la materia.",
-    "Hidrógeno": "Núcleo de un protón con un electrón ligado.",
-    "Helio": "Núcleo de dos protones y dos neutrones (He-4) con dos electrones ligados."
+    "Hidrógeno": "Átomo con un protón y un electrón.",
+    "Helio": "Átomo con núcleo de dos protones y dos neutrones (He-4) y dos electrones."
   },
+
+  "kid_definitions": {
+    "Singularidad": "Imagina todo el universo comprimido en un punto diminuto, como una pelota que aún no se ha inflado.",
+    "Expansión": "Como cuando inflas un globo: todo se separa porque el espacio mismo crece.",
+    "Big Bang": "El gran inicio: el ‘encendido’ del universo, caliente y apretado, que empezó a expandirse.",
+    "Energía Primordial": "La ‘gasolina’ del universo joven que permite que aparezcan cosas nuevas.",
+    "Superfuerza": "Una súper-fuerza única que luego se divide en varias, como una rama que se separa en cuatro.",
+    "Electromagnetismo": "La fuerza que hace que los imanes y la electricidad funcionen y que la luz exista.",
+    "Fuerza nuclear fuerte": "El pegamento súper potente que mantiene unidos los ladrillitos del núcleo.",
+    "Fuerza nuclear débil": "Una fuerza que ayuda a que algunas partículas cambien y libera energía en estrellas.",
+    "Gravedad": "La fuerza que hace caer las cosas y mantiene los planetas en sus órbitas.",
+    "Vacío cuántico": "Un ‘vacío’ que nunca está quieto: vibra y a veces crea pares de partículas por un instante.",
+    "Espuma cuántica": "Como burbujitas microscópicas en el espacio-tiempo cuando miras muy, muy de cerca.",
+    "Bosones": "Los ‘mensajeros’ de las fuerzas: llevan las interacciones entre partículas.",
+    "Fermiones": "Las piezas de la materia que no se pueden apilar en el mismo lugar (como asientos ocupados).",
+    "Quark": "Miniladrillos que forman protones y neutrones.",
+    "Leptón": "Parientes de los electrones que no sienten la fuerza fuerte.",
+    "Electrón": "Una partícula pequeña con carga negativa que rodea al núcleo del átomo.",
+    "Gluón": "El mensajero de la fuerza fuerte; pega a los quarks entre sí.",
+    "Fotón": "Un paquetito de luz; también lleva la fuerza eléctrica.",
+    "Bosón de Higgs": "La ‘gelatina’ que hace que ciertas partículas ‘sientan’ masa.",
+    "Bosones W/Z": "Mensajeros de una fuerza que permite ciertos cambios dentro de los átomos.",
+    "Hadrón": "Cualquier cosa hecha de quarks bien pegados (como protones y neutrones).",
+    "Barión": "Un tipo de hadrón hecho con tres quarks.",
+    "Mesón": "Un tipo de hadrón hecho con un quark y un antiquark.",
+    "Protón": "Una de las piezas del núcleo; tiene carga positiva.",
+    "Neutrón": "Otra pieza del núcleo; no tiene carga.",
+    "Núcleo atómico": "El ‘centro’ del átomo con protones y neutrones muy apretados.",
+    "Átomo": "Como un sistema solar en miniatura: un núcleo en el centro y electrones alrededor.",
+    "Molécula": "Varios átomos tomados de la mano para formar materiales (agua, aire, etc.).",
+    "Radiación electromagnética": "Luz en todas sus formas: rayos gamma, X, ultravioleta, visible, infrarrojo, microondas, radio.",
+    "Partícula": "Una ‘bolita’ muy, muy pequeña que puede ser de materia o mensajera de fuerzas.",
+    "Partícula con masa": "Una partícula que ‘pesa’ porque interactúa con el Higgs.",
+    "Fusión nuclear": "Cuando núcleos se juntan para formar otros y sueltan mucha energía (como en el Sol).",
+    "Aniquilación": "Cuando materia y antimateria se encuentran y se convierten en pura energía (luz).",
+    "Materia": "Las cosas ‘normales’ de las que estamos hechos (tú, yo, las estrellas).",
+    "Antimateria": "Como la materia, pero con cargas opuestas; si se encuentran, ¡puf!, luz.",
+    "Hidrógeno": "El átomo más simple: un protón con un electrón.",
+    "Helio": "Un átomo más pesado que el hidrógeno; hace flotar globos cuando está en gas."
+  },
+
   "justifications": {
     "Expansión|Singularidad": "El modelo estándar cosmológico describe una fase inicial caliente y densa (Big Bang) a partir de una expansión del espacio-tiempo desde condiciones extremas.",
     "Big Bang|Expansión": "La expansión tras el Big Bang genera el continuo espacio-tiempo y un vacío cuántico con fluctuaciones.",
@@ -116,19 +178,91 @@
     "Expansión|Superfuerza": "La ruptura de simetrías por enfriamiento separa la superfuerza en interacciones fundamentales.",
     "Vacío cuántico|Vacío cuántico": "Fluctuaciones pueden generar pares partícula-antipartícula; heurísticamente espuma cuántica.",
     "Energía Primordial|Expansión": "La expansión y el contenido energético excitan campos cuánticos en modos bosónicos y fermiónicos.",
-    "Bosones|Expansión": "Modos bosónicos específicos emergen: fotones (EM), gluones (fuerte), Higgs (mecanismo de masa).",
+    "Bosones|Expansión": "Modos bosónicos específicos emergen: fotones (EM), gluones (fuerte), Higgs (masa), W/Z (débil).",
     "Fermiones|Expansión": "Aparecen familias de fermiones: quarks, leptones y partículas genéricas.",
-    "Quark|Quark": "Dos quarks no son estado asintótico estable; guía hacia hadrones (requiere confinamiento).",
+    "Quark|Quark": "Los quarks no existen libres a bajas energías; se confinan en hadrones.",
     "Hadrón|Quark": "Combinaciones generan bariones (qqq) o mesones (q q̄).",
-    "Quark|Gluón": "Interacción fuerte liga quarks en bariones concretos (protón/neutrón).",
-    "Protón|Neutrón": "Fuerza nuclear fuerte residual liga bariones en núcleos.",
+    "Quark|Gluón": "La interacción fuerte liga quarks en bariones concretos (protón/neutrón).",
+    "Protón|Neutrón": "La fuerza nuclear residual liga bariones en núcleos.",
     "Bosón de Higgs|Partícula": "Acoplamientos de Yukawa/masa de gauge confieren masa efectiva a excitaciones.",
-    "Núcleo atómico|Leptón": "Acoplo EM liga electrones al núcleo → átomo.",
+    "Núcleo atómico|Leptón": "El acoplo electromagnético liga electrones al núcleo → átomo.",
+    "Electrón|Núcleo atómico": "Ruta equivalente: el electrón se liga al núcleo formando un átomo neutro.",
     "Átomo|Átomo": "Potenciales electrónicos permiten enlaces → molécula.",
-    "Fotón|Fotón": "En conjunto describen radiación EM; en QED ideal no interactúan, pero el resultado pedagógico es coherente.",
-    "Materia|Antimateria": "Annihilación produce radiación (p. ej., rayos gamma).",
+    "Fotón|Fotón": "Conjunto de fotones describe radiación EM; pedagógicamente se presenta como ‘luz’.",
+    "Materia|Antimateria": "La aniquilación produce radiación (p. ej., rayos gamma).",
     "Núcleo atómico|Núcleo atómico": "En condiciones adecuadas (altas T/P) se produce fusión y núcleos ligeros.",
-    "Protón|Núcleo atómico": "Añadir un protón a un núcleo ligero + electrón correspondiente lleva a hidrógeno neutro.",
-    "Hidrógeno|Hidrógeno": "En el ciclo protón-protón estelar, hidrógeno fusiona a helio liberando energía."
+    "Protón|Electrón": "Un protón captura un electrón → átomo de hidrógeno.",
+    "Hidrógeno|Hidrógeno": "En el ciclo protón-protón estelar, H fusiona a He liberando energía."
+  },
+
+  "story": {
+    "segments": [
+      {
+        "id": "s0",
+        "title": "Antes del tiempo",
+        "requires": ["Singularidad", "Expansión"],
+        "text": "Antes de que existiera el ‘dónde’ y el ‘cuándo’, todo lo que sería el universo cabía en algo más pequeño que un punto. Luego, el espacio mismo comenzó a estirarse."
+      },
+      {
+        "id": "s1",
+        "title": "El gran inicio",
+        "requires": ["Big Bang"],
+        "text": "Una sopa densa y caliente inundó la nada. El universo no explotó ‘en’ algo: fue el espacio el que empezó a crecer."
+      },
+      {
+        "id": "s2",
+        "title": "Tejiendo el telón",
+        "requires": ["Espacio-Tiempo"],
+        "text": "Se tejió el escenario donde todo ocurre: el espacio-tiempo. Sobre él, vibraciones diminutas llenaron el vacío."
+      },
+      {
+        "id": "s3",
+        "title": "Un vacío inquieto",
+        "requires": ["Vacío cuántico"],
+        "text": "El vacío no estaba vacío. Como un mar con olas microscópicas, de sus crestas brotaban pares fugaces de materia y antimateria."
+      },
+      {
+        "id": "s4",
+        "title": "Romper la superfuerza",
+        "requires": ["Electromagnetismo", "Fuerza nuclear débil", "Fuerza nuclear fuerte", "Gravedad"],
+        "text": "Al enfriarse el cosmos, una sola fuerza se desdobló en cuatro, como una brújula que revela puntos cardinales."
+      },
+      {
+        "id": "s5",
+        "title": "Nacen los mensajeros y la materia",
+        "requires": ["Bosones", "Fermiones"],
+        "text": "Aparecieron los mensajeros de las fuerzas y las piezas que no se pueden apilar, listas para construir futuros mundos."
+      },
+      {
+        "id": "s6",
+        "title": "Quarks y gluones",
+        "requires": ["Quark", "Gluón"],
+        "text": "Los quarks, guiados por gluones, aprendieron a bailar en tríos y parejas, fundando protones y neutrones."
+      },
+      {
+        "id": "s7",
+        "title": "Los primeros ladrillos",
+        "requires": ["Protón", "Neutrón"],
+        "text": "Con protones y neutrones, el cosmos fabricó sus primeros núcleos, pequeñas fortalezas de energía."
+      },
+      {
+        "id": "s8",
+        "title": "Nace la materia estable",
+        "requires": ["Núcleo atómico", "Átomo"],
+        "text": "Cuando los electrones hallaron sus órbitas, nacieron los átomos; cuando los átomos se tomaron de la mano, nacieron las moléculas."
+      },
+      {
+        "id": "s9",
+        "title": "Luz y destino",
+        "requires": ["Radiación electromagnética", "Aniquilación"],
+        "text": "La luz inundó el universo, y donde materia y antimateria se encontraron, dejaron un destello que aún podemos leer."
+      },
+      {
+        "id": "s10",
+        "title": "Fuego de estrellas",
+        "requires": ["Fusión nuclear", "Helio"],
+        "text": "En los hornos estelares, el hidrógeno se unió para formar helio, encendiendo el brillo de las primeras estrellas."
+      }
+    ]
   }
 }
