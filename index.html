@@ -9,28 +9,26 @@
 </head>
 <body>
   <div id="game-container">
-    <section id="elements" aria-label="Elementos disponibles"></section>
+    <section id="elements"></section>
 
-    <section id="crafting-area" aria-label="Área de combinación" tabindex="0">
-      Arrastra aquí dos elementos para combinarlos
-    </section>
+    <section id="crafting-area">Arrastra aquí dos elementos para combinarlos</section>
 
-    <div id="combination-results" aria-live="polite"></div>
+    <div id="combination-results"></div>
 
     <div id="controls">
-      <button id="reset-button" type="button">Reset Game</button>
-      <button id="diagram-toggle-button" type="button">Ver Diagrama</button>
-      <button id="story-toggle-button" type="button">Ver Relato</button>
-      <button id="lang-toggle-button" type="button" aria-pressed="false" title="Toggle language">EN</button>
+      <button id="reset-button">Reset Game</button>
+      <button id="diagram-toggle-button">Ver Diagrama</button>
+      <button id="story-toggle-button">Ver Relato</button>
+      <button id="lang-toggle-button" aria-pressed="false" title="Cambiar idioma">English</button>
     </div>
 
     <div id="non-combinable-section">
-      <h2 id="noncomb-title">Elementos No Combinables por ahora</h2>
+      <h2>Elementos No Combinables por ahora</h2>
       <div id="non-combinable-elements"></div>
     </div>
 
-    <aside id="pedia" aria-label="Glosario">
-      <h2 id="pedia-title">Glosario</h2>
+    <aside id="pedia">
+      <h2 id="glossary-title">Glosario</h2>
       <div id="pedia-content">
         <p id="pedia-intro">
           Haz clic en un elemento para ver su definición rigurosa y su explicación en palabras sencillas.
@@ -41,19 +39,17 @@
   </div>
 
   <!-- Modal Diagrama -->
-  <div id="diagram-modal" role="dialog" aria-modal="true" aria-labelledby="diagram-title">
+  <div id="diagram-modal" aria-hidden="true">
     <div id="diagram-content">
       <button id="diagram-close-button" class="close-btn" aria-label="Cerrar diagrama">&times;</button>
-      <h3 id="diagram-title" class="sr-only">Diagrama de dependencias</h3>
       <div id="network-container"></div>
     </div>
   </div>
 
   <!-- Modal Relato -->
-  <div id="story-modal" role="dialog" aria-modal="true" aria-labelledby="story-title">
+  <div id="story-modal" aria-hidden="true">
     <div id="story-content">
       <button id="story-close-button" class="close-btn" aria-label="Cerrar relato">&times;</button>
-      <h3 id="story-title" class="sr-only">Relato</h3>
       <div id="story-container"></div>
     </div>
   </div>
