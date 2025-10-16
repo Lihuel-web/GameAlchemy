@@ -15,8 +15,10 @@ let definitions = {};
 let kidDefinitions = {};
 let enDefinitions = {};
 let enKidDefinitions = {};
-let justifications = {};
-let enJustifications = {};
+let justificationsRaw = {};
+let enJustificationsRaw = {};
+let justMap = new Map();          // canon "A|B" -> texto
+let enJustMap = new Map();
 let aliases = {};
 let storySegments = [];
 
@@ -46,7 +48,6 @@ function loadGame() {
     return { base: ["Singularidad", "Expansión"], combined: [] };
   }
 }
-
 function saveGame(state) {
   localStorage.setItem('discoveredElements', JSON.stringify(state));
 }
@@ -93,19 +94,61 @@ const UI = {
 
 function applyUILanguage() {
   const t = UI[lang];
-  // Botones
-  document.getElementById('reset-button').textContent = t.reset;
-  document.getElementById('diagram-toggle-button').textContent = t.diagram;
-  document.getElementById('story-toggle-button').textContent = t.story;
-  document.getElementById('lang-toggle-button').textContent = t.langBtn;
-  // Áreas
-  document.getElementById('crafting-area').textContent = t.craftingHint;
-  const nonComb = document.querySelector('#non-combinable-section h2');
-  if (nonComb) nonComb.textContent = t.nonCombHeader;
+  const rb = document.getElementById('reset-button');
+  if (rb) rb.textContent = t.reset;
+  const db = document.getElementById('diagram-toggle-button');
+  if (db) db.textContent = t.diagram;
+  const sb = document.getElementById('story-toggle-button');
+  if (sb) sb.textContent = t.story;
+  const lb = document.getElementById('lang-toggle-button');
+  if (lb) lb.textContent = t.langBtn;
+
+  const ca = document.getElementById('crafting-area');
+  if (ca) ca.textContent = t.craftingHint;
+
+  const nonCombH2 = document.querySelector('#non-combinable-section h2');
+  if (nonCombH2) nonCombH2.textContent = t.nonCombHeader;
+
   const gTitle = document.getElementById('glossary-title');
   if (gTitle) gTitle.textContent = t.glossaryTitle;
+
   const pIntro = document.getElementById('pedia-intro');
   if (pIntro) pIntro.textContent = t.pediaIntro;
+}
+
+// ===== Sanitizador de JSON (permite comentarios y comas colgantes) =====
+function sanitizeJson(input) {
+  let s = input || '';
+  // quita BOM
+  if (s.charCodeAt(0) === 0xFEFF) s = s.slice(1);
+  // /* ... */ comentarios
+  s = s.replace(/\/\*[\s\S]*?\*\//g, '');
+  // // ... comentarios (evita http://)
+  s = s.replace(/(^|[^:\\])\/\/.*$/gm, '$1');
+  // comas finales antes de } o ]
+  s = s.replace(/,(\s*[}\]])/g, '$1');
+  return s;
+}
+
+// ===== Normalizador de claves de justificación =====
+function normalizeJustificationsMap(obj, aliasesRef) {
+  const out = new Map();
+  if (!obj || typeof obj !== 'object') return out;
+
+  const stripParen = s => s.replace(/\s*\([^)]*\)\s*$/g, '').trim();
+  const _resolveAlias = (name) => {
+    const n = String(name).trim();
+    return aliasesRef[n] || n;
+  };
+
+  for (const [rawKey, text] of Object.entries(obj)) {
+    const parts = String(rawKey).split('|').map(p => _resolveAlias(stripParen(p)));
+    if (parts.length === 2) {
+      const canonKey = [parts[0], parts[1]].sort((x, y) => x.localeCompare(y, 'es')).join('|');
+      if (!out.has(canonKey)) out.set(canonKey, text);
+    }
+  }
+  return out;
 }
 
 // ===== Touch helpers =====
@@ -119,6 +162,28 @@ document.addEventListener('DOMContentLoaded', () => {
   const resultsArea = document.getElementById('combination-results');
   const pedia = document.getElementById('pedia-content');
 
+  // Crear botón de idioma si no existe
+  (function ensureLangButton() {
+    if (!document.getElementById('lang-toggle-button')) {
+      const btn = document.createElement('button');
+      btn.id = 'lang-toggle-button';
+      btn.textContent = UI[lang].langBtn;
+      btn.style.padding = '10px 16px';
+      btn.style.fontSize = '14px';
+      btn.style.color = '#fff';
+      btn.style.border = 'none';
+      btn.style.borderRadius = '6px';
+      btn.style.cursor = 'pointer';
+      btn.style.transition = 'background-color .2s';
+      btn.style.backgroundColor = '#00897b';
+      btn.addEventListener('mouseenter', () => btn.style.backgroundColor = '#00695c');
+      btn.addEventListener('mouseleave', () => btn.style.backgroundColor = '#00897b');
+
+      const controls = document.getElementById('controls');
+      if (controls) controls.appendChild(btn);
+    }
+  })();
+
   // Modales
   const diagramButton = document.getElementById('diagram-toggle-button');
   const diagramModal = document.getElementById('diagram-modal');
@@ -131,40 +196,52 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Idioma
   const langBtn = document.getElementById('lang-toggle-button');
-  langBtn.addEventListener('click', () => {
+  langBtn?.addEventListener('click', () => {
     lang = (lang === 'es') ? 'en' : 'es';
     localStorage.setItem('lang', lang);
     applyUILanguage();
-    // Re-render tooltips de elementos con definiciones en el idioma actual
+    // Tooltips
     document.querySelectorAll('.element').forEach(el => {
       const name = el.getAttribute('data-element');
       el.title = getDef(name);
     });
-    // Reescribir el panel si ya había contenido
+    // Reescribir panel si había selección
     const selected = document.querySelector('.element.selected');
     if (selected) showDefinition(selected.getAttribute('data-element'));
   });
 
+  // Carga tolerante del JSON
   fetch(dataPath)
-    .then(r => r.json())
+    .then(async r => {
+      const txt = await r.text();
+      try {
+        return JSON.parse(txt);
+      } catch {
+        return JSON.parse(sanitizeJson(txt));
+      }
+    })
     .then(data => {
       allPossibleElements = (data.elements?.base || []).concat(data.elements?.combined || []);
       definitions = data.definitions || {};
       kidDefinitions = data.kid_definitions || {};
-      enDefinitions = data.en_definitions || {};       // opcional
+      enDefinitions = data.en_definitions || {};        // opcional
       enKidDefinitions = data.en_kid_definitions || {}; // opcional
-      justifications = data.justifications || {};
-      enJustifications = data.en_justifications || {};  // opcional
+
       aliases = data.aliases || {};
       storySegments = (data.story && data.story.segments) ? data.story.segments : [];
 
+      // Guardamos justificaciones RAW para normalizar luego de tener aliases
+      justificationsRaw = data.justifications || {};
+      enJustificationsRaw = data.en_justifications || {};
+
+      // Recetas
       if (data.combinations && !data.recipes) {
         recipesRaw = migrateOldCombinations(data.combinations);
       } else {
         recipesRaw = data.recipes || [];
       }
 
-      // Mapa canónico de recetas
+      // Mapa canónico de recetas + índice inverso
       recipeMap.clear();
       producers.clear();
       for (const { inputs, outputs } of recipesRaw) {
@@ -184,10 +261,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
+      // Normalizar justificaciones con aliases (corrige claves como "Hidrógeno|Hidrógeno (molecular)")
+      justMap = normalizeJustificationsMap(justificationsRaw, aliases);
+      enJustMap = normalizeJustificationsMap(enJustificationsRaw, aliases);
+
       initGame();
       applyUILanguage();
     })
-    .catch(err => console.error('Error loading game data:', err));
+    .catch(err => {
+      console.error('Error loading game data:', err);
+      if (pedia) {
+        pedia.innerHTML = `<p style="color:#b00020"><strong>Error al cargar datos.</strong> Revisa que el JSON sea válido o deja los comentarios/comas y usa este script que los tolera.</p>`;
+      }
+    });
 
   function migrateOldCombinations(combos) {
     const migrated = [];
@@ -228,7 +314,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // drag desktop
     elDiv.ondragstart = (e) => e.dataTransfer.setData('text', name);
 
-    // marcar seleccionado para refrescar panel en cambio de idioma
+    // selección + panel
     elDiv.addEventListener('click', () => {
       document.querySelectorAll('.element.selected').forEach(n => n.classList.remove('selected'));
       elDiv.classList.add('selected');
@@ -255,19 +341,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     return definitions[name] || '—';
   }
-
   function getKidDef(name) {
     if (lang === 'en') {
       return enKidDefinitions[name] || kidDefinitions[name] || '(no translation — showing ES) ' + (kidDefinitions[name] || '—');
     }
     return kidDefinitions[name] || '—';
   }
-
-  function getJustification(key) {
+  function getJustification(canonKey) {
     if (lang === 'en') {
-      return enJustifications[key] || justifications[key] || '(no translation — showing ES) ' + (justifications[key] || '');
+      const en = enJustMap.get(canonKey);
+      if (en) return en;
+      const es = justMap.get(canonKey);
+      if (es) return '(no translation — showing ES) ' + es;
+      return '';
     }
-    return justifications[key] || '';
+    return justMap.get(canonKey) || '';
   }
 
   function showDefinition(name) {
@@ -368,7 +456,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateNonCombinableElements() {
     const disc = new Set(discoveredElements.base.concat(discoveredElements.combined).map(resolveAlias));
     const container = document.getElementById('non-combinable-elements');
-    container.innerHTML = '';
+    if (container) container.innerHTML = '';
 
     for (const name of disc) {
       const could = canProduceUndiscovered(name, disc);
@@ -398,6 +486,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function addElementToNonCombinableSection(element) {
     const container = document.getElementById('non-combinable-elements');
+    if (!container) return;
     const clone = element.cloneNode(true);
     clone.classList.add('in-menu');
     clone.removeAttribute('draggable');
@@ -409,21 +498,27 @@ document.addEventListener('DOMContentLoaded', () => {
     discoveredElements = { base: ["Singularidad", "Expansión"], combined: [] };
     localStorage.removeItem('discoveredElements');
 
-    document.getElementById('elements').innerHTML = '';
-    document.getElementById('crafting-area').innerHTML = '';
-    document.getElementById('combination-results').textContent = '';
-    document.getElementById('non-combinable-elements').innerHTML = '';
+    const el = document.getElementById('elements');
+    if (el) el.innerHTML = '';
+    const ca = document.getElementById('crafting-area');
+    if (ca) ca.innerHTML = '';
+    const cr = document.getElementById('combination-results');
+    if (cr) cr.textContent = '';
+    const nc = document.getElementById('non-combinable-elements');
+    if (nc) nc.innerHTML = '';
 
     const intro = UI[lang].pediaIntro;
-    document.getElementById('pedia-content').innerHTML = `<p>${intro}</p>`;
+    const pc = document.getElementById('pedia-content');
+    if (pc) pc.innerHTML = `<p id="pedia-intro">${intro}</p>`;
 
     initGame();
   }
-  document.getElementById('reset-button').addEventListener('click', resetGame);
+  document.getElementById('reset-button')?.addEventListener('click', resetGame);
 
   // ===== Diagrama jerárquico con Vis.js =====
   function renderDiagram() {
     const container = document.getElementById('network-container');
+    if (!container) return;
     container.innerHTML = '';
 
     const discovered = discoveredElements.base.concat(discoveredElements.combined).map(resolveAlias);
@@ -463,16 +558,18 @@ document.addEventListener('DOMContentLoaded', () => {
     new vis.Network(container, { nodes, edges }, options);
   }
 
-  diagramButton.addEventListener('click', () => {
+  diagramButton?.addEventListener('click', () => {
+    if (!diagramModal) return;
     diagramModal.classList.add('visible');
     diagramModal.setAttribute('aria-hidden', 'false');
     renderDiagram();
   });
-  diagramCloseBtn.addEventListener('click', () => {
+  diagramCloseBtn?.addEventListener('click', () => {
+    if (!diagramModal) return;
     diagramModal.classList.remove('visible');
     diagramModal.setAttribute('aria-hidden', 'true');
   });
-  diagramModal.addEventListener('click', (e) => {
+  diagramModal?.addEventListener('click', (e) => {
     if (e.target === diagramModal) {
       diagramModal.classList.remove('visible');
       diagramModal.setAttribute('aria-hidden', 'true');
@@ -482,6 +579,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // ===== Relato =====
   function renderStory() {
     const t = UI[lang];
+    if (!storyContainer) return;
     storyContainer.innerHTML = '';
     const disc = new Set(discoveredElements.base.concat(discoveredElements.combined).map(resolveAlias));
 
@@ -499,16 +597,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  storyButton.addEventListener('click', () => {
+  storyButton?.addEventListener('click', () => {
+    if (!storyModal) return;
     storyModal.classList.add('visible');
     storyModal.setAttribute('aria-hidden', 'false');
     renderStory();
   });
-  storyCloseBtn.addEventListener('click', () => {
+  storyCloseBtn?.addEventListener('click', () => {
+    if (!storyModal) return;
     storyModal.classList.remove('visible');
     storyModal.setAttribute('aria-hidden', 'true');
   });
-  storyModal.addEventListener('click', (e) => {
+  storyModal?.addEventListener('click', (e) => {
     if (e.target === storyModal) {
       storyModal.classList.remove('visible');
       storyModal.setAttribute('aria-hidden', 'true');
@@ -590,7 +690,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function choosePairsFor(tgt) {
       const arr = producers.get(tgt) || [];
-      // Priorizar parejas con ambos insumos descubiertos o base
       const discSet = new Set(discoveredElements.base.concat(discoveredElements.combined).map(resolveAlias));
       return arr
         .map(([a, b]) => [a, b])
@@ -608,7 +707,7 @@ document.addEventListener('DOMContentLoaded', () => {
       visited.add(tgt);
 
       const options = choosePairsFor(tgt);
-      if (!options.length) return baseSet.has(tgt); // podría ser base sin productores
+      if (!options.length) return baseSet.has(tgt);
 
       for (const [a, b] of options) {
         const okA = baseSet.has(a) || dfs(a, depth + 1);
@@ -621,9 +720,9 @@ document.addEventListener('DOMContentLoaded', () => {
       return false;
     }
 
-    // Construir steps desde hojas a target y luego invertir para presentación cronológica
     const success = dfs(resolveAlias(target), 0);
     return success ? steps.reverse() : [];
   }
 
 });
+
