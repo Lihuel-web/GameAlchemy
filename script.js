@@ -28,10 +28,8 @@ const setText = (id, value) => {
 const computeCombosFromPoints = (pts) => Math.max(0, Math.ceil(Math.max(0, pts) / 2));
 
 // ===== Estado de juego y datos =====
-let discoveredElements = loadGame() || {
-  base: ["Singularidad", "Expansión"],
-  combined: []
-};
+const FALLBACK_BASE = ["Singularidad", "Expansión"];
+let discoveredElements = loadGame() || { base: [...FALLBACK_BASE], combined: [] };
 
 let recipesRaw = [];
 let recipeMap = new Map();        // "A|B" -> outputs[]
@@ -41,20 +39,78 @@ let definitions = {};
 let kidDefinitions = {};
 let enDefinitions = {};
 let enKidDefinitions = {};
+let enNames = {};
 let justificationsRaw = {};
 let enJustificationsRaw = {};
 let justMap = new Map();          // canon "A|B" -> texto
 let enJustMap = new Map();
 let aliases = {};
 let storySegments = [];
+let storySegmentsEn = [];
+let updateNonCombinableElements = () => {};
+let addElementToNonCombinableSection = () => {};
 
 let lang = localStorage.getItem('lang') || 'es';
+const ARROW = '→';
 
 // ===== Utilidades =====
+const garbleMap = {
+  'Expansi�n': 'Expansión',
+  'Nucleos�ntesis estelar': 'Nucleosíntesis estelar',
+  'Nucleos�ntesis primordial': 'Nucleosíntesis primordial',
+  'Hidr�geno': 'Hidrógeno',
+  'Hidr�geno molecular (H2)': 'Hidrógeno molecular (H2)',
+  'N�cleos ligeros': 'Núcleos ligeros',
+  'N�cleo at�mico': 'Núcleo atómico',
+  'Espacio-Tiempo': 'Espacio-Tiempo'
+};
+function repairEncoding(name) {
+  const s = String(name || '').trim();
+  if (garbleMap[s]) return garbleMap[s];
+  try {
+    const fixed = decodeURIComponent(escape(s));
+    if (fixed && fixed !== s) return garbleMap[fixed] || fixed;
+  } catch { /* ignore */ }
+  return s;
+}
 const norm = s => String(s).trim();
 function resolveAlias(name) {
   const n = norm(name);
   return aliases[n] || n;
+}
+function displayName(name) {
+  const canon = resolveAlias(name);
+  if (lang === 'en' && enNames[canon]) return enNames[canon];
+  return canon;
+}
+function getDef(name) {
+  if (lang === 'en') {
+    return enDefinitions[name] || definitions[name] || '-';
+  }
+  return definitions[name] || '-';
+}
+function getKidDef(name) {
+  if (lang === 'en') {
+    return enKidDefinitions[name] || kidDefinitions[name] || '(no translation - showing ES) ' + (kidDefinitions[name] || '-');
+  }
+  return kidDefinitions[name] || '-';
+}
+function getJustification(canonKey) {
+  if (lang === 'en') {
+    const en = enJustMap.get(canonKey);
+    if (en) return en;
+    const es = justMap.get(canonKey);
+    if (es) return '(no translation - showing ES) ' + es;
+    return '';
+  }
+  return justMap.get(canonKey) || '';
+}
+function refreshElementLabels() {
+  document.querySelectorAll('.element').forEach(el => {
+    const name = el.getAttribute('data-element');
+    el.textContent = displayName(name);
+    el.title = getDef(name);
+  });
 }
 const keyFor = (a, b) => [norm(a), norm(b)]
   .map(resolveAlias)
@@ -64,14 +120,15 @@ const keyFor = (a, b) => [norm(a), norm(b)]
 function loadGame() {
   const saved = localStorage.getItem('discoveredElements');
   try {
-    if (!saved) return { base: ["Singularidad", "Expansión"], combined: [] };
+    if (!saved) return { base: [...FALLBACK_BASE], combined: [] };
     const parsed = JSON.parse(saved);
     if (!parsed || !Array.isArray(parsed.base) || !Array.isArray(parsed.combined))
       throw new Error('Invalid save');
-    return parsed;
+    const normalizeList = (arr) => (Array.isArray(arr) ? arr.map(repairEncoding) : []);
+    return { base: normalizeList(parsed.base), combined: normalizeList(parsed.combined) };
   } catch {
     localStorage.removeItem('discoveredElements');
-    return { base: ["Singularidad", "Expansión"], combined: [] };
+    return { base: [...FALLBACK_BASE], combined: [] };
   }
 }
 function saveGame(state) {
@@ -84,30 +141,34 @@ const UI = {
     glossaryTitle: 'Glosario',
     pediaIntro: 'Haz clic en un elemento para ver su definición rigurosa y su explicación en palabras sencillas. Al crear una combinación, se mostrará su justificación.',
     craftingHint: 'Arrastra aquí dos elementos para combinarlos',
-    nonCombHeader: 'Elementos No Combinables por ahora',
+    nonCombHeader: 'Elementos no combinables por ahora',
+    nonCombBadge: 'Sin combos',
+    nonCombBlocked: 'Este elemento ya no crea combinaciones nuevas.',
     reset: 'Reiniciar juego',
-    diagram: 'Ver Diagrama',
-    story: 'Ver Relato',
+    diagram: 'Ver diagrama',
+    story: 'Ver relato',
     langBtn: 'English',
     sessionTitle: 'Turno de combinaciones',
     sessionPointsLabel: 'Puntos',
-    sessionCombosLabel: 'Combos por sesiA3n',
+    sessionCombosLabel: 'Combos por sesión',
     sessionRemainingLabel: 'Restantes',
     sessionLoading: 'Cargando tus puntos...',
     sessionNeedConfig: 'Falta configurar SUPABASE_URL/KEY (config.js o localStorage).',
-    sessionNeedLogin: 'Inicia sesiA3n en Points Panel para usar tus puntos en Alchemy.',
-    sessionNoStudent: 'Tu usuario no estA- vinculado a un estudiante.',
+    sessionNeedLogin: 'Inicia sesión en Points Panel para usar tus puntos en Alchemy.',
+    sessionNoStudent: 'Tu usuario no está vinculado a un estudiante.',
     sessionError: 'No se pudieron leer tus puntos.',
-    sessionNoCombos: 'Sin combinaciones disponibles. Vuelve cuando tengas mA-s puntos.',
+    sessionNoCombos: 'Sin combinaciones disponibles. Vuelve cuando tengas más puntos.',
+    sessionOffline: 'Modo offline: combinaciones ilimitadas (sin Supabase).',
     sessionReady: 'Listo: los intentos disponibles reflejan tus puntos (no se consumen).',
     sessionBlocked: 'Necesitas puntos para habilitar combinaciones.',
     sessionTeacherUnlimited: 'Profesor: combinaciones ilimitadas habilitadas.',
     sessionTeacherToggle: 'Simular puntos del mejor equipo',
-    sessionTeacherTopLoading: 'Buscando el equipo con mA-s puntos...',
+    sessionTeacherTopLoading: 'Buscando el equipo con más puntos...',
     sessionTeacherTopError: 'No se pudo cargar el mejor equipo. Manteniendo modo ilimitado.',
     sessionTeacherTopSim: (team, pts, combos) => `Simulando mejor equipo (${team || 'N/A'}): ${pts} puntos -> ${combos} combos.`,
     themeNeon: 'Tema: Neón',
     themeLight: 'Tema: Claro',
+    sessionUnlimited: 'ilimitado',
     created: 'Has creado',
     nothing: 'No ha pasado nada...',
     rigorous: 'Rigurosa',
@@ -122,6 +183,8 @@ const UI = {
     pediaIntro: 'Click any element to see its rigorous definition and a plain-language explanation. When you create a combo, its justification will appear here.',
     craftingHint: 'Drag two elements here to combine',
     nonCombHeader: 'Currently Non-combinable Elements',
+    nonCombBadge: 'No combos',
+    nonCombBlocked: 'This element no longer creates new combinations.',
     reset: 'Reset Game',
     diagram: 'View Diagram',
     story: 'View Story',
@@ -136,6 +199,7 @@ const UI = {
     sessionNoStudent: 'Your user is not linked to a student record.',
     sessionError: 'Could not read your points.',
     sessionNoCombos: 'No combinations available. Come back with more points.',
+    sessionOffline: 'Offline mode: unlimited combinations (no Supabase).',
     sessionReady: 'Ready: available attempts mirror your points (they are not consumed).',
     sessionBlocked: 'You need points to enable combinations.',
     sessionTeacherUnlimited: 'Teacher: unlimited combinations enabled.',
@@ -145,6 +209,7 @@ const UI = {
     sessionTeacherTopSim: (team, pts, combos) => `Simulating top team (${team || 'N/A'}): ${pts} points -> ${combos} combos.`,
     themeNeon: 'Theme: Neon',
     themeLight: 'Theme: Light',
+    sessionUnlimited: 'unlimited',
     created: 'You created',
     nothing: 'Nothing happened...',
     rigorous: 'Rigorous',
@@ -156,8 +221,10 @@ const UI = {
   }
 };
 
+
 function applyUILanguage() {
   const t = UI[lang];
+  document.documentElement.setAttribute('lang', lang);
   const rb = document.getElementById('reset-button');
   if (rb) rb.textContent = t.reset;
   const db = document.getElementById('diagram-toggle-button');
@@ -168,7 +235,7 @@ function applyUILanguage() {
   if (lb) lb.textContent = t.langBtn;
 
   const ca = document.getElementById('crafting-area');
-  if (ca) ca.textContent = t.craftingHint;
+  if (ca && ca.children.length === 0) ca.textContent = t.craftingHint;
 
   const nonCombH2 = document.querySelector('#non-combinable-section h2');
   if (nonCombH2) nonCombH2.textContent = t.nonCombHeader;
@@ -181,6 +248,8 @@ function applyUILanguage() {
 
   updateSessionUI();
   updateThemeToggleLabel();
+  refreshElementLabels();
+  updateNonCombinableElements();
 }
 
 // ===== Tema (neón / claro) =====
@@ -220,6 +289,18 @@ function refreshSessionMessage() {
   setText('session-message', getSessionMessageText());
 }
 
+function enableOfflineFreePlay(messageKey = 'sessionOffline', rawMessage) {
+  sessionState.loading = false;
+  sessionState.ready = true;
+  sessionState.role = 'student';
+  sessionState.points = 0;
+  sessionState.combosTotal = Infinity;
+  sessionState.combosLeft = Infinity;
+  sessionState.teacherUseTop = false;
+  setSessionMessage(messageKey, rawMessage);
+  updateSessionUI();
+}
+
 function setSessionMessage(keyOrText, rawText) {
   if (keyOrText && UI[lang][keyOrText]) {
     sessionState.messageKey = keyOrText;
@@ -237,7 +318,7 @@ function updateSessionUI() {
   setText('session-label-points', t.sessionPointsLabel);
   setText('session-label-total', t.sessionCombosLabel);
   setText('session-label-remaining', t.sessionRemainingLabel);
-  const formatCombos = (v) => v === Infinity ? 'unlimited' : String(v);
+  const formatCombos = (v) => v === Infinity ? t.sessionUnlimited : String(v);
   setText('session-points', sessionState.ready ? sessionState.points : '-');
   setText('session-combos', sessionState.ready ? formatCombos(sessionState.combosTotal) : '-');
   setText('session-remaining', sessionState.ready ? formatCombos(sessionState.combosLeft) : '-');
@@ -250,7 +331,8 @@ function updateSessionUI() {
   const note = document.getElementById('session-teacher-note');
   if (note) {
     if (sessionState.teacherUseTop && sessionState.teacherTopTeam) {
-      note.textContent = UI[lang].sessionTeacherTopSim(sessionState.teacherTopTeam, sessionState.teacherTopPoints, sessionState.combosTotal === Infinity ? 'unlimited' : sessionState.combosTotal);
+      const comboLabel = sessionState.combosTotal === Infinity ? t.sessionUnlimited : sessionState.combosTotal;
+      note.textContent = UI[lang].sessionTeacherTopSim(sessionState.teacherTopTeam, sessionState.teacherTopPoints, comboLabel);
     } else {
       note.textContent = UI[lang].sessionTeacherUnlimited;
     }
@@ -268,18 +350,16 @@ async function initSessionFromSupabase() {
   updateSessionUI();
 
   if (!sb) {
-    sessionState.loading = false;
-    setSessionMessage('sessionNeedConfig');
-    updateSessionUI();
+    // Modo sin Supabase: juego libre para todos
+    enableOfflineFreePlay();
     return;
   }
 
   try {
     const { data: { user }, error } = await sb.auth.getUser();
     if (error || !user) {
-      sessionState.loading = false;
-      setSessionMessage('sessionNeedLogin');
-      updateSessionUI();
+      // Si no hay sesión Supabase, degradamos a modo offline
+      enableOfflineFreePlay();
       return;
     }
 
@@ -298,12 +378,7 @@ async function initSessionFromSupabase() {
       .select('id,name')
       .eq('auth_user_id', user.id)
       .maybeSingle();
-    if (stuErr || !stu) {
-      sessionState.loading = false;
-      setSessionMessage('sessionNoStudent');
-      updateSessionUI();
-      return;
-    }
+    if (stuErr || !stu) return enableOfflineFreePlay('sessionOffline', UI[lang].sessionNeedLogin);
 
     const { data: bal, error: balErr } = await sb.from('balances')
       .select('points')
@@ -311,10 +386,7 @@ async function initSessionFromSupabase() {
       .maybeSingle();
     if (balErr) {
       console.warn('balances read error', balErr);
-      sessionState.loading = false;
-      setSessionMessage('sessionError');
-      updateSessionUI();
-      return;
+      return enableOfflineFreePlay('sessionOffline', UI[lang].sessionError);
     }
 
     const pts = Math.max(0, bal?.points || 0);
@@ -332,10 +404,7 @@ async function initSessionFromSupabase() {
     updateSessionUI();
   } catch (err) {
     console.warn('session load error', err);
-    sessionState.loading = false;
-    sessionState.ready = false;
-    setSessionMessage('sessionError');
-    updateSessionUI();
+    enableOfflineFreePlay('sessionOffline', UI[lang].sessionError);
   }
 }
 
@@ -527,24 +596,51 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     })
     .then(data => {
-      allPossibleElements = (data.elements?.base || []).concat(data.elements?.combined || []);
-      definitions = data.definitions || {};
-      kidDefinitions = data.kid_definitions || {};
-      enDefinitions = data.en_definitions || {};        // opcional
-      enKidDefinitions = data.en_kid_definitions || {}; // opcional
+      const fixStr = (s) => repairEncoding(s);
+      const fixList = (arr) => Array.isArray(arr) ? arr.map(fixStr) : [];
+      const fixObj = (obj) => {
+        const out = {};
+        Object.entries(obj || {}).forEach(([k, v]) => { out[fixStr(k)] = typeof v === 'string' ? fixStr(v) : v; });
+        return out;
+      };
+      const fixRecipes = (recs) => Array.isArray(recs) ? recs.map(r => ({
+        inputs: fixList(r.inputs || []),
+        outputs: fixList(r.outputs || [])
+      })) : [];
+      const fixStory = (st) => {
+        const segs = (st && st.segments) ? st.segments : [];
+        return segs.map(seg => ({
+          ...seg,
+          title: fixStr(seg.title || ''),
+          text: fixStr(seg.text || ''),
+          requires: fixList(seg.requires || [])
+        }));
+      };
 
-      aliases = data.aliases || {};
-      storySegments = (data.story && data.story.segments) ? data.story.segments : [];
+      data.elements = data.elements || {};
+      data.elements.base = fixList(data.elements.base || []);
+      data.elements.combined = fixList(data.elements.combined || []);
+
+      allPossibleElements = (data.elements.base || []).concat(data.elements.combined || []);
+      definitions = fixObj(data.definitions || {});
+      kidDefinitions = fixObj(data.kid_definitions || {});
+      enDefinitions = fixObj(data.en_definitions || {});
+      enKidDefinitions = fixObj(data.en_kid_definitions || {});
+      enNames = fixObj(data.en_names || {});
+
+      aliases = fixObj(data.aliases || {});
+      storySegments = fixStory(data.story);
+      storySegmentsEn = fixStory(data.story_en);
 
       // Guardamos justificaciones RAW para normalizar luego de tener aliases
-      justificationsRaw = data.justifications || {};
-      enJustificationsRaw = data.en_justifications || {};
+      justificationsRaw = fixObj(data.justifications || {});
+      enJustificationsRaw = fixObj(data.en_justifications || {});
 
       // Recetas
       if (data.combinations && !data.recipes) {
         recipesRaw = migrateOldCombinations(data.combinations);
       } else {
-        recipesRaw = data.recipes || [];
+        recipesRaw = fixRecipes(data.recipes || []);
       }
 
       // Mapa canónico de recetas + índice inverso
@@ -611,7 +707,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function createElementDiv(elementName) {
     const name = resolveAlias(elementName);
     const elDiv = document.createElement('div');
-    elDiv.textContent = name;
+    elDiv.textContent = displayName(name);
     elDiv.className = 'element';
     elDiv.setAttribute('data-element', name);
     elDiv.setAttribute('draggable', true);
@@ -641,48 +737,25 @@ document.addEventListener('DOMContentLoaded', () => {
     elementsContainer.appendChild(elDiv);
   }
 
-  function getDef(name) {
-    if (lang === 'en') {
-      return enDefinitions[name] || definitions[name] || '—';
-    }
-    return definitions[name] || '—';
-  }
-  function getKidDef(name) {
-    if (lang === 'en') {
-      return enKidDefinitions[name] || kidDefinitions[name] || '(no translation — showing ES) ' + (kidDefinitions[name] || '—');
-    }
-    return kidDefinitions[name] || '—';
-  }
-  function getJustification(canonKey) {
-    if (lang === 'en') {
-      const en = enJustMap.get(canonKey);
-      if (en) return en;
-      const es = justMap.get(canonKey);
-      if (es) return '(no translation — showing ES) ' + es;
-      return '';
-    }
-    return justMap.get(canonKey) || '';
-  }
-
-  function showDefinition(name) {
+    function showDefinition(name) {
     const t = UI[lang];
-    const def = getDef(name) || (lang === 'en' ? '(no translation — showing ES)' : 'Definición no disponible.');
-    const kid = getKidDef(name) || (lang === 'en' ? '(no translation — showing ES)' : 'Explicación en palabras sencillas no disponible.');
+    const canon = resolveAlias(name);
+    const def = getDef(canon) || (lang === 'en' ? '(no translation - showing ES)' : 'Definici?n no disponible.');
+    const kid = getKidDef(canon) || (lang === 'en' ? '(no translation - showing ES)' : 'Explicaci?n en palabras sencillas no disponible.');
 
-    // Proveniencia: precursores directos y una ruta resumida
-    const direct = (producers.get(name) || []).map(([a, b]) => `${a} + ${b} → ${name}`);
-    const path = buildOnePathSummary(name); // Array de pasos "A + B → OUT"
+    const direct = (producers.get(canon) || []).map(([a, b]) => `${displayName(a)} + ${displayName(b)} ${ARROW} ${displayName(canon)}`);
+    const path = buildOnePathSummary(canon); // Array de pasos "A + B ? OUT"
 
     const directHTML = direct.length
       ? `<ul>${direct.map(s => `<li>${s}</li>`).join('')}</ul>`
-      : `<p style="opacity:.8">—</p>`;
+      : `<p style="opacity:.8">-</p>`;
 
     const pathHTML = path.length
       ? `<ol>${path.map(s => `<li>${s}</li>`).join('')}</ol>`
-      : `<p style="opacity:.8">—</p>`;
+      : `<p style="opacity:.8">-</p>`;
 
     const html = `
-      <h3>${name}</h3>
+      <h3>${displayName(canon)}</h3>
       <p><strong>${t.rigorous}:</strong> ${def}</p>
       <p><strong>${t.simple}:</strong> ${kid}</p>
       <hr/>
@@ -694,7 +767,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('pedia-content').innerHTML = html;
   }
 
-  // ===== Drag & Drop =====
+// ===== Drag & Drop =====
   craftingArea.ondragover = e => e.preventDefault();
   craftingArea.ondrop = e => {
     e.preventDefault();
@@ -703,18 +776,28 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   function handleElementDrop(elementName) {
+    const t = UI[lang];
     const current = [...craftingArea.querySelectorAll('.element')];
     if (current.length >= 2) return;
 
-    const original = document.querySelector(`.element[data-element="${CSS.escape(resolveAlias(elementName))}"]`);
+    const canon = resolveAlias(elementName);
+    const original = document.querySelector(`.element[data-element="${CSS.escape(canon)}"]`);
     if (!original) return;
+    if (original.classList.contains('non-combinable')) {
+      resultsArea.textContent = t.nonCombBlocked;
+      return;
+    }
 
     const clone = original.cloneNode(true);
+    clone.textContent = displayName(canon);
     clone.classList.add('in-crafting-area');
     clone.removeAttribute('draggable');
+    // Solo limpia el texto de ayuda si no hay elementos previos; evita borrar el primero.
+    if (current.length === 0) craftingArea.textContent = '';
     craftingArea.appendChild(clone);
 
-    if (current.length + 1 === 2) checkCombination();
+    const totalNow = craftingArea.querySelectorAll('.element').length;
+    if (totalNow === 2) checkCombination();
   }
 
   function combineElements(a, b) {
@@ -729,6 +812,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const spend = spendCombinationAttempt();
     craftingArea.innerHTML = '';
+    craftingArea.textContent = UI[lang].craftingHint;
     if (!spend.ok) {
       resultsArea.textContent = spend.reason || t.sessionNoCombos;
       return;
@@ -747,13 +831,16 @@ document.addEventListener('DOMContentLoaded', () => {
         created.push(r);
       }
       const remaining = typeof spend.remaining === 'number' ? spend.remaining : sessionState.combosLeft;
-      resultsArea.textContent = `${t.created}: ${names[0]} + ${names[1]} → ${created.join(', ')} (${t.sessionRemainingLabel}: ${remaining})`;
+      const pairLabel = `${displayName(names[0])} + ${displayName(names[1])} ${ARROW}`;
+      const createdLabel = created.map(displayName).join(', ');
+      const remainingLabel = remaining === Infinity ? t.sessionUnlimited : remaining;
+      resultsArea.textContent = `${t.created}: ${pairLabel} ${createdLabel} (${t.sessionRemainingLabel}: ${remainingLabel})`;
       saveGame(discoveredElements);
       updateNonCombinableElements();
 
       const k = keyFor(names[0], names[1]);
       const just = getJustification(k);
-      if (just) appendExplanation(`<h3>${names[0]} + ${names[1]}</h3><p>${just}</p>`);
+      if (just) appendExplanation(`<h3>${displayName(names[0])} + ${displayName(names[1])}</h3><p>${just}</p>`);
     } else {
       resultsArea.textContent = t.nothing;
     }
@@ -766,23 +853,31 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ===== No combinables =====
-  function updateNonCombinableElements() {
+  updateNonCombinableElements = function () {
     const disc = new Set(discoveredElements.base.concat(discoveredElements.combined).map(resolveAlias));
     const container = document.getElementById('non-combinable-elements');
     if (container) container.innerHTML = '';
+    const badge = UI[lang].nonCombBadge || 'No combos';
 
     for (const name of disc) {
       const could = canProduceUndiscovered(name, disc);
       const el = document.querySelector(`.element[data-element="${CSS.escape(name)}"]`);
       if (!el) continue;
+      el.textContent = displayName(name);
       if (!could) {
         el.classList.add('non-combinable');
+        el.setAttribute('data-label-noncomb', badge);
+        el.setAttribute('aria-disabled', 'true');
+        el.setAttribute('draggable', 'false');
         addElementToNonCombinableSection(el);
       } else {
         el.classList.remove('non-combinable');
+        el.removeAttribute('data-label-noncomb');
+        el.removeAttribute('aria-disabled');
+        el.setAttribute('draggable', 'true');
       }
     }
-  }
+  };
 
   function canProduceUndiscovered(elementName, discoveredSet) {
     for (const [k, outs] of recipeMap.entries()) {
@@ -797,18 +892,22 @@ document.addEventListener('DOMContentLoaded', () => {
     return false;
   }
 
-  function addElementToNonCombinableSection(element) {
+  addElementToNonCombinableSection = function (element) {
     const container = document.getElementById('non-combinable-elements');
     if (!container) return;
     const clone = element.cloneNode(true);
+    const canon = clone.getAttribute('data-element');
+    clone.textContent = displayName(canon);
     clone.classList.add('in-menu');
     clone.removeAttribute('draggable');
+    clone.setAttribute('aria-disabled', 'true');
+    clone.setAttribute('data-label-noncomb', UI[lang].nonCombBadge || 'No combos');
     clone.addEventListener('click', () => showDefinition(clone.getAttribute('data-element')));
     container.appendChild(clone);
-  }
+  };
 
   async function resetGame() {
-    discoveredElements = { base: ["Singularidad", "Expansión"], combined: [] };
+    discoveredElements = { base: [...FALLBACK_BASE], combined: [] };
     localStorage.removeItem('discoveredElements');
 
     const el = document.getElementById('elements');
@@ -838,7 +937,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const discovered = discoveredElements.base.concat(discoveredElements.combined).map(resolveAlias);
     const nodeSet = new Set(discovered);
 
-    const nodesArray = [...nodeSet].map(name => ({ id: name, label: name }));
+    const nodesArray = [...nodeSet].map(name => ({ id: name, label: displayName(name) }));
     const edgesArray = [];
 
     for (const [k, outs] of recipeMap.entries()) {
@@ -896,15 +995,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!storyContainer) return;
     storyContainer.innerHTML = '';
     const disc = new Set(discoveredElements.base.concat(discoveredElements.combined).map(resolveAlias));
+    const segments = (lang === 'en' && storySegmentsEn.length) ? storySegmentsEn : storySegments;
 
-    storySegments.forEach(seg => {
+    segments.forEach(seg => {
       const unlocked = (seg.requires || []).every(r => disc.has(resolveAlias(r)));
       const card = document.createElement('div');
       card.className = 'story-segment' + (unlocked ? '' : ' story-locked');
-      const reqs = (seg.requires || []).map(resolveAlias).join(', ');
+      const reqs = (seg.requires || []).map(r => displayName(resolveAlias(r))).join(', ');
+      const lock = unlocked ? '' : '🔒 ';
       card.innerHTML = `
-        <h3 class="story-title">${unlocked ? '' : '🔒 '}${seg.title}</h3>
-        <div class="story-requires"><strong>${t.storyUnlocksWith}</strong> ${reqs || '—'}</div>
+        <h3 class="story-title">${lock}${seg.title}</h3>
+        <div class="story-requires"><strong>${t.storyUnlocksWith}</strong> ${reqs || '-'}</div>
         <p>${unlocked ? seg.text : t.storyLockedMsg}</p>
       `;
       storyContainer.appendChild(card);
@@ -949,6 +1050,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let moving = false;
 
     element.addEventListener('touchstart', (e) => {
+      if (element.classList.contains('non-combinable')) return;
       const rect = element.getBoundingClientRect();
       const touch = e.touches[0];
       offsetX = touch.clientX - rect.left;
@@ -1027,7 +1129,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const okA = baseSet.has(a) || dfs(a, depth + 1);
         const okB = baseSet.has(b) || dfs(b, depth + 1);
         if (okA && okB) {
-          steps.push(`${a} + ${b} → ${tgt}`);
+          steps.push(`${displayName(a)} + ${displayName(b)} ${ARROW} ${displayName(tgt)}`);
           return true;
         }
       }
