@@ -8,12 +8,32 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis-network.min.js"></script>
 </head>
 <body>
+  <header class="navbar">
+    <div class="nav-title">Alchemy Game</div>
+    <div class="nav-links">
+      <a class="nav-btn" href="../game.html">Minigames hub</a>
+      <a class="nav-btn alt" href="../index.html">Points panel</a>
+    </div>
+  </header>
   <div id="game-container">
     <section id="elements"></section>
 
     <section id="crafting-area">Arrastra aquí dos elementos para combinarlos</section>
 
     <div id="combination-results"></div>
+
+    <section id="session-box" class="session-box">
+      <div class="session-head">
+        <div id="session-title" class="session-title">Turno de combinaciones</div>
+        <button id="session-refresh" type="button" class="session-btn">Refrescar puntos</button>
+      </div>
+      <div class="session-stats">
+        <div><span id="session-label-points">Puntos</span>: <strong id="session-points">�?"</strong></div>
+        <div><span id="session-label-total">Combos por sesiA3n</span>: <strong id="session-combos">�?"</strong></div>
+        <div><span id="session-label-remaining">Restantes</span>: <strong id="session-remaining">�?"</strong></div>
+      </div>
+      <div id="session-message" class="session-message">Carga tus puntos para habilitar combinaciones.</div>
+    </section>
 
     <div id="controls">
       <button id="reset-button">Reset Game</button>
@@ -54,7 +74,11 @@
     </div>
   </div>
 
-  <script src="script.js"></script>
+  <script src="../config.js"></script>
+  <script>
+    window.SUPABASE_URL = window.__SUPABASE_CONFIG?.url || localStorage.getItem('SUPABASE_URL') || '';
+    window.SUPABASE_ANON_KEY = window.__SUPABASE_CONFIG?.anonKey || localStorage.getItem('SUPABASE_ANON_KEY') || '';
+  </script>
+  <script type="module" src="script.js"></script>
 </body>
 </html>
-

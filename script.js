@@ -1,5 +1,26 @@
 // script.js
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
 const dataPath = 'alchemy-recipes.json';
+const SUPA_URL = String(window?.SUPABASE_URL || '').trim();
+const SUPA_KEY = String(window?.SUPABASE_ANON_KEY || '').trim();
+const sb = (SUPA_URL && SUPA_KEY) ? createClient(SUPA_URL, SUPA_KEY) : null;
+const sessionState = {
+  loading: false,
+  ready: false,
+  user: null,
+  student: null,
+  points: 0,
+  combosTotal: 0,
+  combosLeft: 0,
+  messageKey: null,
+  messageRaw: ''
+};
+const setText = (id, value) => {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value;
+};
+const computeCombosFromPoints = (pts) => Math.max(0, Math.ceil(Math.max(0, pts) / 2));
 
 // ===== Estado de juego y datos =====
 let discoveredElements = loadGame() || {
@@ -63,6 +84,19 @@ const UI = {
     diagram: 'Ver Diagrama',
     story: 'Ver Relato',
     langBtn: 'English',
+    sessionTitle: 'Turno de combinaciones',
+    sessionPointsLabel: 'Puntos',
+    sessionCombosLabel: 'Combos por sesiA3n',
+    sessionRemainingLabel: 'Restantes',
+    sessionRefresh: 'Refrescar puntos',
+    sessionLoading: 'Cargando tus puntos...',
+    sessionNeedConfig: 'Falta configurar SUPABASE_URL/KEY (config.js o localStorage).',
+    sessionNeedLogin: 'Inicia sesiA3n en Points Panel para usar tus puntos en Alchemy.',
+    sessionNoStudent: 'Tu usuario no estA- vinculado a un estudiante.',
+    sessionError: 'No se pudieron leer tus puntos.',
+    sessionNoCombos: 'Sin combinaciones disponibles. Vuelve cuando tengas mA-s puntos.',
+    sessionReady: 'Listo: los intentos disponibles reflejan tus puntos (no se consumen).',
+    sessionBlocked: 'Necesitas puntos para habilitar combinaciones.',
     created: 'Has creado',
     nothing: 'No ha pasado nada...',
     rigorous: 'Rigurosa',
@@ -81,6 +115,19 @@ const UI = {
     diagram: 'View Diagram',
     story: 'View Story',
     langBtn: 'Español',
+    sessionTitle: 'Combination turn',
+    sessionPointsLabel: 'Points',
+    sessionCombosLabel: 'Combos per session',
+    sessionRemainingLabel: 'Remaining',
+    sessionRefresh: 'Refresh points',
+    sessionLoading: 'Loading your points...',
+    sessionNeedConfig: 'Missing SUPABASE_URL/KEY (config.js or localStorage).',
+    sessionNeedLogin: 'Sign in on Points Panel to use your points in Alchemy.',
+    sessionNoStudent: 'Your user is not linked to a student record.',
+    sessionError: 'Could not read your points.',
+    sessionNoCombos: 'No combinations available. Come back with more points.',
+    sessionReady: 'Ready: available attempts mirror your points (they are not consumed).',
+    sessionBlocked: 'You need points to enable combinations.',
     created: 'You created',
     nothing: 'Nothing happened...',
     rigorous: 'Rigorous',
@@ -114,6 +161,131 @@ function applyUILanguage() {
 
   const pIntro = document.getElementById('pedia-intro');
   if (pIntro) pIntro.textContent = t.pediaIntro;
+
+  updateSessionUI();
+}
+
+// ===== Estado de sesiA3n / Supabase (lA-mite de combinaciones) =====
+function getSessionMessageText() {
+  if (sessionState.messageKey && UI[lang][sessionState.messageKey]) {
+    return UI[lang][sessionState.messageKey];
+  }
+  return sessionState.messageRaw || '';
+}
+
+function refreshSessionMessage() {
+  setText('session-message', getSessionMessageText());
+}
+
+function setSessionMessage(keyOrText, rawText) {
+  if (keyOrText && UI[lang][keyOrText]) {
+    sessionState.messageKey = keyOrText;
+    sessionState.messageRaw = '';
+  } else {
+    sessionState.messageKey = null;
+    sessionState.messageRaw = rawText || (keyOrText || '');
+  }
+  refreshSessionMessage();
+}
+
+function updateSessionUI() {
+  const t = UI[lang];
+  setText('session-title', t.sessionTitle);
+  setText('session-label-points', t.sessionPointsLabel);
+  setText('session-label-total', t.sessionCombosLabel);
+  setText('session-label-remaining', t.sessionRemainingLabel);
+  setText('session-points', sessionState.ready ? sessionState.points : '-');
+  setText('session-combos', sessionState.ready ? sessionState.combosTotal : '-');
+  setText('session-remaining', sessionState.ready ? sessionState.combosLeft : '-');
+  const refreshBtn = document.getElementById('session-refresh');
+  if (refreshBtn) refreshBtn.textContent = t.sessionRefresh;
+  refreshSessionMessage();
+}
+
+async function initSessionFromSupabase() {
+  sessionState.loading = true;
+  sessionState.ready = false;
+  sessionState.combosTotal = 0;
+  sessionState.combosLeft = 0;
+  setSessionMessage('sessionLoading');
+  updateSessionUI();
+
+  if (!sb) {
+    sessionState.loading = false;
+    setSessionMessage('sessionNeedConfig');
+    updateSessionUI();
+    return;
+  }
+
+  try {
+    const { data: { user }, error } = await sb.auth.getUser();
+    if (error || !user) {
+      sessionState.loading = false;
+      setSessionMessage('sessionNeedLogin');
+      updateSessionUI();
+      return;
+    }
+
+    const { data: stu, error: stuErr } = await sb.from('students')
+      .select('id,name')
+      .eq('auth_user_id', user.id)
+      .maybeSingle();
+    if (stuErr || !stu) {
+      sessionState.loading = false;
+      setSessionMessage('sessionNoStudent');
+      updateSessionUI();
+      return;
+    }
+
+    const { data: bal, error: balErr } = await sb.from('balances')
+      .select('points')
+      .eq('student_id', stu.id)
+      .maybeSingle();
+    if (balErr) {
+      console.warn('balances read error', balErr);
+      sessionState.loading = false;
+      setSessionMessage('sessionError');
+      updateSessionUI();
+      return;
+    }
+
+    const pts = Math.max(0, bal?.points || 0);
+    const combos = computeCombosFromPoints(pts);
+
+    sessionState.user = user;
+    sessionState.student = stu;
+    sessionState.points = pts;
+    sessionState.combosTotal = combos;
+    sessionState.combosLeft = combos;
+    sessionState.ready = true;
+    sessionState.loading = false;
+
+    setSessionMessage(combos > 0 ? 'sessionReady' : 'sessionBlocked');
+    updateSessionUI();
+  } catch (err) {
+    console.warn('session load error', err);
+    sessionState.loading = false;
+    sessionState.ready = false;
+    setSessionMessage('sessionError');
+    updateSessionUI();
+  }
+}
+
+function spendCombinationAttempt() {
+  if (!sessionState.ready) {
+    const key = sessionState.loading ? 'sessionLoading' : (sb ? 'sessionNeedLogin' : 'sessionNeedConfig');
+    setSessionMessage(key);
+    updateSessionUI();
+    return { ok: false, reason: getSessionMessageText() || UI[lang].sessionNoCombos };
+  }
+  if (sessionState.combosLeft <= 0) {
+    setSessionMessage('sessionNoCombos');
+    updateSessionUI();
+    return { ok: false, reason: UI[lang].sessionNoCombos };
+  }
+  sessionState.combosLeft = Math.max(0, sessionState.combosLeft - 1);
+  updateSessionUI();
+  return { ok: true, remaining: sessionState.combosLeft };
 }
 
 // ===== Sanitizador de JSON (permite comentarios y comas colgantes) =====
@@ -161,6 +333,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const craftingArea = document.getElementById('crafting-area');
   const resultsArea = document.getElementById('combination-results');
   const pedia = document.getElementById('pedia-content');
+
+  updateSessionUI();
+  initSessionFromSupabase();
+  document.getElementById('session-refresh')?.addEventListener('click', () => initSessionFromSupabase());
 
   // Crear botón de idioma si no existe
   (function ensureLangButton() {
@@ -421,8 +597,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const names = [...craftingArea.querySelectorAll('.element')].map(el => el.getAttribute('data-element'));
     if (names.length !== 2) return;
 
-    const results = combineElements(names[0], names[1]);
+    const spend = spendCombinationAttempt();
     craftingArea.innerHTML = '';
+    if (!spend.ok) {
+      resultsArea.textContent = spend.reason || t.sessionNoCombos;
+      return;
+    }
+
+    const results = combineElements(names[0], names[1]);
 
     if (results && results.length) {
       const created = [];
@@ -434,7 +616,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         created.push(r);
       }
-      resultsArea.textContent = `${t.created}: ${names[0]} + ${names[1]} → ${created.join(', ')}`;
+      const remaining = typeof spend.remaining === 'number' ? spend.remaining : sessionState.combosLeft;
+      resultsArea.textContent = `${t.created}: ${names[0]} + ${names[1]} → ${created.join(', ')} (${t.sessionRemainingLabel}: ${remaining})`;
       saveGame(discoveredElements);
       updateNonCombinableElements();
 
@@ -725,4 +908,3 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
 });
-
