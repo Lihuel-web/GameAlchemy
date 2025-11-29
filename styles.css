@@ -114,13 +114,46 @@ body.theme-light .nav-btn.ghost { color: #0b1a35; border-color: #cdd8f3; backgro
 }
 .element:active { cursor: grabbing; }
 .element.selected { box-shadow: 0 0 0 2px #8e24aa inset; }
-.element.non-combinable { background-color: #ffefef; color: #333; border-color: #f44336; }
+.element.non-combinable {
+  background: linear-gradient(135deg, #2d1b1b, #3b0f0f);
+  color: #fca5a5;
+  border-color: #ef4444;
+  box-shadow: none;
+  cursor: not-allowed;
+  position: relative;
+  opacity: 0.9;
+  filter: saturate(0.7);
+}
+.element.non-combinable::after {
+  content: attr(data-label-noncomb);
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 12px;
+  background: rgba(239, 68, 68, 0.18);
+  color: #ffcdd2;
+  border: 1px solid rgba(239, 68, 68, 0.55);
+  letter-spacing: 0.2px;
+}
 .element.in-crafting-area { background: #eef7ff; border-color: #42a5f5; }
 .element.in-menu { width: 100%; box-shadow: 0 2px 5px rgba(0,0,0,0.1); cursor: default; }
 body.theme-dark .element { background:#101827; border-color:#1f2937; color:#e2e8f0; }
 body.theme-dark .element.in-crafting-area { background:#12203a; border-color:#2563eb; }
 body.theme-dark #crafting-area { border-color:#1f2937; color:#cbd5e1; }
 body.theme-light #crafting-area { border-color:#cdd8f3; color:#41506b; }
+body.theme-light .element.non-combinable {
+  background: linear-gradient(135deg, #ffeaea, #ffdede);
+  color: #9f1239;
+  border-color: #f87171;
+}
+body.theme-light .element.non-combinable::after {
+  color: #b91c1c;
+  background: rgba(248, 113, 113, 0.16);
+  border-color: rgba(248, 113, 113, 0.45);
+}
 
 #reset-button, #diagram-toggle-button, #story-toggle-button, #lang-toggle-button {
   padding: 10px 16px;
@@ -181,6 +214,10 @@ body.theme-light #crafting-area { border-color:#cdd8f3; color:#41506b; }
 .story-locked { opacity: 0.6; filter: grayscale(0.3); border-left-color: #bbb; background: #f5f5f5; }
 .story-title { margin: 0 0 4px 0; }
 .story-requires { font-size: 12px; color: #666; }
+body.theme-dark .story-segment { background: #141927; border-left-color: #9c27b0; color: #e5d9ff; }
+body.theme-dark .story-locked { background: #0f1320; border-left-color: #4b5563; color: #cbd5e1; }
+body.theme-dark .story-title { color: #f3e8ff; }
+body.theme-dark .story-requires { color: #cbd5e1; }
 
 /* Light theme overrides */
 body.theme-light #session-box { background:#ffffff; border-color:#e2e8f6; color:#0b1a35; }
