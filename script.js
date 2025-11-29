@@ -5,6 +5,7 @@ const dataPath = 'alchemy-recipes.json';
 const SUPA_URL = String(window?.SUPABASE_URL || '').trim();
 const SUPA_KEY = String(window?.SUPABASE_ANON_KEY || '').trim();
 const sb = (SUPA_URL && SUPA_KEY) ? createClient(SUPA_URL, SUPA_KEY) : null;
+const THEME_KEY = 'alchemy-theme';
 const sessionState = {
   loading: false,
   ready: false,
@@ -13,6 +14,10 @@ const sessionState = {
   points: 0,
   combosTotal: 0,
   combosLeft: 0,
+  role: 'student',
+  teacherUseTop: false,
+  teacherTopTeam: null,
+  teacherTopPoints: 0,
   messageKey: null,
   messageRaw: ''
 };
@@ -88,7 +93,6 @@ const UI = {
     sessionPointsLabel: 'Puntos',
     sessionCombosLabel: 'Combos por sesiA3n',
     sessionRemainingLabel: 'Restantes',
-    sessionRefresh: 'Refrescar puntos',
     sessionLoading: 'Cargando tus puntos...',
     sessionNeedConfig: 'Falta configurar SUPABASE_URL/KEY (config.js o localStorage).',
     sessionNeedLogin: 'Inicia sesiA3n en Points Panel para usar tus puntos en Alchemy.',
@@ -97,6 +101,13 @@ const UI = {
     sessionNoCombos: 'Sin combinaciones disponibles. Vuelve cuando tengas mA-s puntos.',
     sessionReady: 'Listo: los intentos disponibles reflejan tus puntos (no se consumen).',
     sessionBlocked: 'Necesitas puntos para habilitar combinaciones.',
+    sessionTeacherUnlimited: 'Profesor: combinaciones ilimitadas habilitadas.',
+    sessionTeacherToggle: 'Simular puntos del mejor equipo',
+    sessionTeacherTopLoading: 'Buscando el equipo con mA-s puntos...',
+    sessionTeacherTopError: 'No se pudo cargar el mejor equipo. Manteniendo modo ilimitado.',
+    sessionTeacherTopSim: (team, pts, combos) => `Simulando mejor equipo (${team || 'N/A'}): ${pts} puntos -> ${combos} combos.`,
+    themeNeon: 'Tema: Neón',
+    themeLight: 'Tema: Claro',
     created: 'Has creado',
     nothing: 'No ha pasado nada...',
     rigorous: 'Rigurosa',
@@ -119,7 +130,6 @@ const UI = {
     sessionPointsLabel: 'Points',
     sessionCombosLabel: 'Combos per session',
     sessionRemainingLabel: 'Remaining',
-    sessionRefresh: 'Refresh points',
     sessionLoading: 'Loading your points...',
     sessionNeedConfig: 'Missing SUPABASE_URL/KEY (config.js or localStorage).',
     sessionNeedLogin: 'Sign in on Points Panel to use your points in Alchemy.',
@@ -128,6 +138,13 @@ const UI = {
     sessionNoCombos: 'No combinations available. Come back with more points.',
     sessionReady: 'Ready: available attempts mirror your points (they are not consumed).',
     sessionBlocked: 'You need points to enable combinations.',
+    sessionTeacherUnlimited: 'Teacher: unlimited combinations enabled.',
+    sessionTeacherToggle: 'Simulate top team points',
+    sessionTeacherTopLoading: 'Looking up the top-scoring team...',
+    sessionTeacherTopError: 'Could not load the top team. Staying on unlimited.',
+    sessionTeacherTopSim: (team, pts, combos) => `Simulating top team (${team || 'N/A'}): ${pts} points -> ${combos} combos.`,
+    themeNeon: 'Theme: Neon',
+    themeLight: 'Theme: Light',
     created: 'You created',
     nothing: 'Nothing happened...',
     rigorous: 'Rigorous',
@@ -163,6 +180,32 @@ function applyUILanguage() {
   if (pIntro) pIntro.textContent = t.pediaIntro;
 
   updateSessionUI();
+  updateThemeToggleLabel();
+}
+
+// ===== Tema (neón / claro) =====
+function applyTheme(mode) {
+  const m = mode === 'light' ? 'light' : 'dark';
+  document.body.classList.toggle('theme-dark', m === 'dark');
+  document.body.classList.toggle('theme-light', m === 'light');
+  localStorage.setItem(THEME_KEY, m);
+  updateThemeToggleLabel();
+}
+
+function updateThemeToggleLabel() {
+  const btn = document.getElementById('theme-toggle');
+  if (!btn) return;
+  const isDark = document.body.classList.contains('theme-dark');
+  btn.textContent = isDark ? UI[lang].themeNeon : UI[lang].themeLight;
+}
+
+function initThemeToggle() {
+  const saved = localStorage.getItem(THEME_KEY) || 'dark';
+  applyTheme(saved);
+  document.getElementById('theme-toggle')?.addEventListener('click', () => {
+    const isDark = document.body.classList.contains('theme-dark');
+    applyTheme(isDark ? 'light' : 'dark');
+  });
 }
 
 // ===== Estado de sesiA3n / Supabase (lA-mite de combinaciones) =====
@@ -194,11 +237,25 @@ function updateSessionUI() {
   setText('session-label-points', t.sessionPointsLabel);
   setText('session-label-total', t.sessionCombosLabel);
   setText('session-label-remaining', t.sessionRemainingLabel);
+  const formatCombos = (v) => v === Infinity ? 'unlimited' : String(v);
   setText('session-points', sessionState.ready ? sessionState.points : '-');
-  setText('session-combos', sessionState.ready ? sessionState.combosTotal : '-');
-  setText('session-remaining', sessionState.ready ? sessionState.combosLeft : '-');
-  const refreshBtn = document.getElementById('session-refresh');
-  if (refreshBtn) refreshBtn.textContent = t.sessionRefresh;
+  setText('session-combos', sessionState.ready ? formatCombos(sessionState.combosTotal) : '-');
+  setText('session-remaining', sessionState.ready ? formatCombos(sessionState.combosLeft) : '-');
+  const tRow = document.getElementById('session-teacher-row');
+  if (tRow) tRow.style.display = sessionState.role === 'teacher' ? 'block' : 'none';
+  const toggleLabel = document.getElementById('session-teacher-toggle-label');
+  if (toggleLabel) toggleLabel.textContent = t.sessionTeacherToggle;
+  const toggle = document.getElementById('session-use-top');
+  if (toggle) toggle.checked = !!sessionState.teacherUseTop;
+  const note = document.getElementById('session-teacher-note');
+  if (note) {
+    if (sessionState.teacherUseTop && sessionState.teacherTopTeam) {
+      note.textContent = UI[lang].sessionTeacherTopSim(sessionState.teacherTopTeam, sessionState.teacherTopPoints, sessionState.combosTotal === Infinity ? 'unlimited' : sessionState.combosTotal);
+    } else {
+      note.textContent = UI[lang].sessionTeacherUnlimited;
+    }
+  }
+  if (sessionState.role !== 'teacher') setSessionMessage(sessionState.messageKey, sessionState.messageRaw);
   refreshSessionMessage();
 }
 
@@ -223,6 +280,17 @@ async function initSessionFromSupabase() {
       sessionState.loading = false;
       setSessionMessage('sessionNeedLogin');
       updateSessionUI();
+      return;
+    }
+
+    const { data: profile } = await sb.from('profiles').select('role').eq('id', user.id).maybeSingle();
+    const role = profile?.role || 'student';
+    sessionState.role = role;
+
+    if (role === 'teacher') {
+      sessionState.user = user;
+      sessionState.loading = false;
+      await applyTeacherSessionMode();
       return;
     }
 
@@ -278,6 +346,9 @@ function spendCombinationAttempt() {
     updateSessionUI();
     return { ok: false, reason: getSessionMessageText() || UI[lang].sessionNoCombos };
   }
+  if (sessionState.combosLeft === Infinity) {
+    return { ok: true, remaining: Infinity };
+  }
   if (sessionState.combosLeft <= 0) {
     setSessionMessage('sessionNoCombos');
     updateSessionUI();
@@ -286,6 +357,62 @@ function spendCombinationAttempt() {
   sessionState.combosLeft = Math.max(0, sessionState.combosLeft - 1);
   updateSessionUI();
   return { ok: true, remaining: sessionState.combosLeft };
+}
+
+async function loadTopTeamSnapshot() {
+  try {
+    const { data, error } = await sb.rpc('top_local_leaderboard', { _limit: 1 });
+    if (error || !data || !data.length) return { error: true };
+    const top = data[0];
+    const ptsRaw = Number(top.pool_points);
+    const pts = Number.isFinite(ptsRaw) ? ptsRaw : Math.max(0, (top.total_local ?? 0) + (top.spent ?? 0));
+    const localName = top.local_name || (top.local_team_id ? `#${top.local_team_id}` : 'N/A');
+    return { points: Math.max(0, pts), teamLabel: localName };
+  } catch (e) {
+    console.warn('top_local_leaderboard error', e);
+    return { error: true };
+  }
+}
+
+async function applyTeacherSessionMode(forceUseTop) {
+  if (typeof forceUseTop === 'boolean') sessionState.teacherUseTop = forceUseTop;
+  if (sessionState.role !== 'teacher') return;
+
+  if (!sessionState.teacherUseTop) {
+    sessionState.points = 0;
+    sessionState.combosTotal = Infinity;
+    sessionState.combosLeft = Infinity;
+    sessionState.ready = true;
+    setSessionMessage('sessionTeacherUnlimited');
+    updateSessionUI();
+    return;
+  }
+
+  sessionState.loading = true;
+  setSessionMessage('sessionTeacherTopLoading');
+  updateSessionUI();
+
+  const snap = await loadTopTeamSnapshot();
+  sessionState.loading = false;
+  if (snap.error) {
+    sessionState.teacherUseTop = false;
+    sessionState.combosTotal = Infinity;
+    sessionState.combosLeft = Infinity;
+    setSessionMessage('sessionTeacherTopError');
+    updateSessionUI();
+    return;
+  }
+
+  const combos = computeCombosFromPoints(snap.points);
+  sessionState.points = snap.points;
+  sessionState.combosTotal = combos;
+  sessionState.combosLeft = combos;
+  sessionState.teacherTopTeam = snap.teamLabel;
+  sessionState.teacherTopPoints = snap.points;
+  sessionState.ready = true;
+  const msg = UI[lang].sessionTeacherTopSim(snap.teamLabel, snap.points, combos);
+  setSessionMessage(null, msg);
+  updateSessionUI();
 }
 
 // ===== Sanitizador de JSON (permite comentarios y comas colgantes) =====
@@ -334,9 +461,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const resultsArea = document.getElementById('combination-results');
   const pedia = document.getElementById('pedia-content');
 
+  initThemeToggle();
   updateSessionUI();
   initSessionFromSupabase();
-  document.getElementById('session-refresh')?.addEventListener('click', () => initSessionFromSupabase());
+  document.getElementById('session-use-top')?.addEventListener('change', (e) => {
+    applyTeacherSessionMode(!!e.target.checked);
+  });
 
   // Crear botón de idioma si no existe
   (function ensureLangButton() {
@@ -677,7 +807,7 @@ document.addEventListener('DOMContentLoaded', () => {
     container.appendChild(clone);
   }
 
-  function resetGame() {
+  async function resetGame() {
     discoveredElements = { base: ["Singularidad", "Expansión"], combined: [] };
     localStorage.removeItem('discoveredElements');
 
@@ -695,6 +825,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (pc) pc.innerHTML = `<p id="pedia-intro">${intro}</p>`;
 
     initGame();
+    await initSessionFromSupabase();
   }
   document.getElementById('reset-button')?.addEventListener('click', resetGame);
 

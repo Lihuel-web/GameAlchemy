@@ -13,6 +13,7 @@
     <div class="nav-links">
       <a class="nav-btn" href="../game.html">Minigames hub</a>
       <a class="nav-btn alt" href="../index.html">Points panel</a>
+      <button class="nav-btn ghost" id="theme-toggle" type="button">Tema: Neón</button>
     </div>
   </header>
   <div id="game-container">
@@ -25,12 +26,18 @@
     <section id="session-box" class="session-box">
       <div class="session-head">
         <div id="session-title" class="session-title">Turno de combinaciones</div>
-        <button id="session-refresh" type="button" class="session-btn">Refrescar puntos</button>
       </div>
       <div class="session-stats">
         <div><span id="session-label-points">Puntos</span>: <strong id="session-points">�?"</strong></div>
         <div><span id="session-label-total">Combos por sesiA3n</span>: <strong id="session-combos">�?"</strong></div>
         <div><span id="session-label-remaining">Restantes</span>: <strong id="session-remaining">�?"</strong></div>
+      </div>
+      <div id="session-teacher-row" class="session-teacher" style="display:none">
+        <label class="session-switch">
+          <input type="checkbox" id="session-use-top" />
+          <span id="session-teacher-toggle-label">Simular puntos del mejor equipo</span>
+        </label>
+        <div id="session-teacher-note" class="session-teacher-note"></div>
       </div>
       <div id="session-message" class="session-message">Carga tus puntos para habilitar combinaciones.</div>
     </section>
