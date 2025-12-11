@@ -1,5 +1,5 @@
 // script.js
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.87.1';
 
 const dataPath = 'alchemy-recipes.json';
 const SUPA_URL = String(window?.SUPABASE_URL || '').trim();
